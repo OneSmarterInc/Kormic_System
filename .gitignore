@@ -1,0 +1,30 @@
+# Environments
+.venv/
+env/
+venv/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Database
+*.db
+test_persistence.db
+
+# Scratch and references
+reference/
+scratch_convert.py
+
+# Logs and Memory
+logs/
+memory/
+profiles/
+reports/
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
