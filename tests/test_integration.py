@@ -288,3 +288,28 @@ class TestKormicCoreSystem(unittest.TestCase):
         report = self.behavior_monitor.evaluate("agent123", policy_violation_metrics)
         self.assertEqual(report.status, "HALT")
         self.assertIn("Immediate HALT", report.reason)
+
+    def test_shamir_threshold_recovery(self):
+        """✓ Shamir twin key split and threshold quorum recovery."""
+        import os
+        from kormic.utils.exceptions import CryptographicError
+        
+        secret_key = os.urandom(32)
+        shares = self.key_custody.wrap_twin_key(secret_key)
+        
+        # We need at least 3 to recover
+        # Test 1-2-3
+        quorum_1 = [shares[0], shares[1], shares[2]]
+        self.assertEqual(self.key_custody.unwrap_twin_key(quorum_1), secret_key)
+        
+        # Test 2-3-4
+        quorum_2 = [shares[1], shares[2], shares[3]]
+        self.assertEqual(self.key_custody.unwrap_twin_key(quorum_2), secret_key)
+        
+        # Test 1-3-5
+        quorum_3 = [shares[0], shares[2], shares[4]]
+        self.assertEqual(self.key_custody.unwrap_twin_key(quorum_3), secret_key)
+        
+        # Assert fewer than 3 raises CryptographicError
+        with self.assertRaises(CryptographicError):
+            self.key_custody.unwrap_twin_key([shares[0], shares[1]])

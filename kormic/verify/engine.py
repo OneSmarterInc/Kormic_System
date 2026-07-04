@@ -4,7 +4,7 @@ from kormic.interfaces.registry import RegistryReader
 from kormic.models.verify import ProofToken, VerificationResult
 from kormic.models.pedigree import BirthRecord, HistoryLink
 from kormic.verify.cache import TrustCache
-from kormic.crypto.algorithms import MLDSASignerMock
+from kormic.crypto.algorithms import MLDSASigner
 from kormic.utils.serialize import canonical_json, sha256_hex
 from kormic.utils.exceptions import VerificationError, PedigreeIntegrityError
 
@@ -75,8 +75,8 @@ class Verifier:
             }
             serialized_payload = canonical_json(payload_dict)
             
-            # Verify PQ signature mock
-            is_authentic = MLDSASignerMock.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
+            # Verify PQ signature
+            is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
             
             if is_authentic and self._cache:
                 self._cache.put(agent_code, sig_bytes)
