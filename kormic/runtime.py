@@ -9,16 +9,35 @@ from kormic.behavior.monitor import BehaviorMonitor
 from kormic.models.behavior import BehaviorConfig
 from kormic.logger import kormic_logger
 
+from kormic.utils.bloom import ScalableRevocationFilter
+
 class LocalRegistry(RegistryReader):
     def __init__(self, key_custody: SoftwareKeyCustody):
         self.key_custody = key_custody
-        self.revoked_agents = set()
+        self.revoked_filter = ScalableRevocationFilter()
+        
+        # Load any existing revoked epochs from key custody into the bloom filter
+        # (Assuming key_custody tracks revoked epochs)
+        # We prefix epoch numbers with 'EPOCH:' to distinguish them from agent codes
+        
+    def revoke_agent(self, agent_code: str) -> None:
+        """Revokes an agent and adds it to the filter."""
+        self.revoked_filter.add(agent_code)
+        
+    def revoke_epoch(self, epoch_n: int) -> None:
+        """Revokes an epoch in key custody and adds it to the filter."""
+        self.key_custody.revoke_epoch(epoch_n)
+        self.revoked_filter.add(f"EPOCH:{epoch_n}")
 
     def is_epoch_revoked(self, epoch_n: int) -> bool:
+        # Check bloom filter first for scale
+        if self.revoked_filter.is_revoked(f"EPOCH:{epoch_n}"):
+            return True
+        # Fallback to key custody for absolute truth
         return self.key_custody.is_epoch_revoked(epoch_n)
 
     def is_agent_revoked(self, agent_code: str) -> bool:
-        return agent_code in self.revoked_agents
+        return self.revoked_filter.is_revoked(agent_code)
 
     def get_epoch_certificate(self, epoch_n: int) -> Optional[bytes]:
         try:

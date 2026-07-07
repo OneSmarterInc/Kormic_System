@@ -59,5 +59,43 @@ class AgentManager:
 
         # 5. Save the initialized pedigree into RecordStore database (SQLite)
         self.record_store.put(agent_code, pedigree.to_dict())
+        
+        # 6. Immediately seal the baseline Twin (0 events)
+        from kormic.crypto.twin import TwinManager
+        sealed_blob, shares = TwinManager.seal_twin(pedigree, self.key_custody)
+        self.record_store.put_twin(agent_code, sealed_blob)
 
-        return agent_code
+        return agent_code, shares
+
+    def add_event(self, agent_code: str, event_data: str, snapshot_k: int = 5) -> Optional[list]:
+        """
+        Adds a history event. Implements the High-Churn Snapshot Model (Section 6.4).
+        Returns new Shamir shares if a Snapshot Twin was sealed on this event, else None.
+        """
+        import time
+        from kormic.pedigree.builder import append_history_event
+        from kormic.crypto.twin import TwinManager
+        
+        # 1. Fetch live pedigree
+        ped_dict = self.record_store.get(agent_code)
+        if not ped_dict:
+            raise ValueError("Agent not found in live database.")
+            
+        pedigree = Pedigree.from_dict(ped_dict)
+        
+        # 2. Add Event
+        pedigree = append_history_event(pedigree, event_data, time.time())
+        seq = len(pedigree.history)
+        
+        # 3. Update live DB
+        self.record_store.put(agent_code, pedigree.to_dict())
+        
+        # 4. Snapshot Twin Logic (High-Churn optimization)
+        # We only encrypt and seal the full twin every K events to save bandwidth.
+        # This means on restore, we accept a bounded data loss of up to K-1 events.
+        if seq % snapshot_k == 0:
+            sealed_blob, new_shares = TwinManager.seal_twin(pedigree, self.key_custody)
+            self.record_store.put_twin(agent_code, sealed_blob)
+            return new_shares
+            
+        return None
