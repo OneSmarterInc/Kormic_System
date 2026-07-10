@@ -12,6 +12,7 @@ def create_birth_record(
     epoch_number: int,
     sig_alg: str,
     key_custody: KeyCustody,
+    agent_pub_key: str = "",
     created_at: float = None
 ) -> BirthRecord:
     """
@@ -27,7 +28,8 @@ def create_birth_record(
         "created_at": created_at,
         "guardrails": guardrails,
         "epoch_number": epoch_number,
-        "sig_alg": sig_alg
+        "sig_alg": sig_alg,
+        "agent_pub_key": agent_pub_key
     }
 
     # Canonical serialization
@@ -42,6 +44,7 @@ def create_birth_record(
         guardrails=guardrails,
         epoch_number=epoch_number,
         sig_alg=sig_alg,
+        agent_pub_key=agent_pub_key,
         signature=signature
     )
 

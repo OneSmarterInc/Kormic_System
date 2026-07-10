@@ -13,6 +13,8 @@ class ProofToken:
     history_length: int               # Number of links currently in history
     freshness_timestamp: float        # Prevents reply/replay attacks
     authority_reference: str          # Contextual signing domain details
+    challenge: str = ""               # Optional, used for Challenge-Response in Phase 3
+    signature: str = ""               # Hex signature of the challenge
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -21,7 +23,9 @@ class ProofToken:
             "current_head": self.current_head,
             "history_length": self.history_length,
             "freshness_timestamp": self.freshness_timestamp,
-            "authority_reference": self.authority_reference
+            "authority_reference": self.authority_reference,
+            "challenge": self.challenge,
+            "signature": self.signature
         }
 
 @dataclass(frozen=True)

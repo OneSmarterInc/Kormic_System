@@ -9,6 +9,7 @@ class BirthRecord:
     guardrails: Dict[str, Any]
     epoch_number: int
     sig_alg: str
+    agent_pub_key: str
     signature: bytes
 
     def to_dict(self) -> Dict[str, Any]:
@@ -19,6 +20,7 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
+            "agent_pub_key": self.agent_pub_key,
             "signature": self.signature.hex()
         }
 
@@ -30,6 +32,7 @@ class BirthRecord:
             guardrails=data["guardrails"],
             epoch_number=data["epoch_number"],
             sig_alg=data["sig_alg"],
+            agent_pub_key=data.get("agent_pub_key", ""),
             signature=bytes.fromhex(data["signature"])
         )
 
@@ -40,7 +43,8 @@ class BirthRecord:
             "created_at": self.created_at,
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
-            "sig_alg": self.sig_alg
+            "sig_alg": self.sig_alg,
+            "agent_pub_key": self.agent_pub_key
         }
 
 @dataclass(frozen=True)

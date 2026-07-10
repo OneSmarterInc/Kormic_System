@@ -52,9 +52,40 @@ This system currently implements the **Phase 1 (Core Pedigree)** and **Phase 2 (
 
 ---
 
+## Phase 2.5 Features (MeshKor Rogue-Agent Countermeasures)
+This module hardens the runtime environment to mitigate shared-runtime bleed (like the 2026 Varonis Dialogflow incident) and unauthorized destructive actions (like the Replit incident).
+
+### 8. Capability Manifest & Sandbox (C1)
+- **Manifest Isolation:** The loose `guardrails` dict is upgraded to a strict capability manifest defining exactly what tools and network endpoints an agent can reach.
+- **Runtime Enforcer:** The `Sandbox` wraps the agent at boot. It blocks any tools or endpoints not explicitly allowed in the manifest, ensuring shared infrastructure does not equate to shared authority.
+
+### 9. Credential Root & FAST Challenge (C2 & Gap 1)
+- **Challenge-Response Fix:** Agents must mathematically sign a random challenge to prove possession of their birth keys, completely closing the token-theft replay gap.
+- **No Ambient Authority:** Agents do not receive standing API keys. They request 5-minute scoped credentials from the `CredentialRoot`. 
+- **Irreversible Scopes:** Destructive actions (like refunds or deletes) are explicitly flagged and must be declared at birth to be issued.
+
+### 10. Drift HALT Wiring
+- **Automatic Revocation:** If the Sandbox blocks an out-of-manifest action, it registers a `MANIFEST_BREACH` in the Tamper-Evident History.
+- **Behavioral Loop:** The breach is fed to the `BehaviorMonitor` which issues a `HALT`, automatically triggering global revocation via the `CentralRegistryAuthority`.
+
+---
+
+## Phase 3 Features (Hardware Readiness & Human Quorum)
+This module secures the existential actions (Create, Destroy, Restore) and removes single points of failure at the human/admin layer.
+
+### 11. Threshold Ceremony (Shamir Quorum)
+- **Existential Quorums:** Generating an agent, restoring a Twin, or destroying a single agent mathematically requires `3-of-5` physical keys.
+- **Catastrophic Quorum:** A total wipe of the registry requires the absolute largest quorum (`5-of-5`). No single "God Key" exists.
+
+### 12. Self-Defense
+- **Self-Isolation:** Agents can voluntarily pull their own plug if they detect prompt-injection manipulation.
+- **No Self-Destruct:** Reversible isolation is automated; irreversible destruction is strictly kept behind the human Threshold Quorum.
+
+---
+
 ## Getting Started & Demos
 
-You can run the full, interactive system demonstration for Phase 1 and 2 by running:
+You can run the full, interactive system demonstration for Phase 1, 2, 2.5, and 3 by running:
 
 ```bash
 # Phase 1: Core Pedigree & Tamper-Evident History
@@ -65,6 +96,9 @@ python demo_attack.py
 
 # Phase 2: Global Scale, Network Lag, and Catastrophic Twin Recovery Demo
 python demo_phase2.py
+
+# MeshKor Countermeasures: Dialogflow/Replit attacks and Drift wiring
+python demos/demo_attacks.py
 ```
 
 ### Running Tests

@@ -27,7 +27,8 @@ class AgentManager:
         entity_ref: str,            # Owner identifier, e.g. 'priya7f3a'
         instance_num: str,          # Exactly 4 digits, e.g. '0001'
         real_world_id: str,         # Raw ID/profile text (will be hashed internally)
-        guardrails: Dict[str, Any]  # Allowed permissions and policies
+        guardrails: Dict[str, Any], # Allowed permissions and policies
+        agent_pub_key: str = ""     # Hex agent public key for FAST challenge
     ) -> str:
         """
         Creates, signs, initializes, and stores a new agent in the database.
@@ -51,7 +52,8 @@ class AgentManager:
             guardrails=guardrails,
             epoch_number=self.default_epoch,
             sig_alg="ML-DSA-44",
-            key_custody=self.key_custody
+            key_custody=self.key_custody,
+            agent_pub_key=agent_pub_key
         )
 
         # 4. Initialize Pedigree (Creates head_0 summary)
