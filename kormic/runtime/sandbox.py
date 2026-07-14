@@ -24,6 +24,9 @@ class Sandbox:
         if verify_res.status != "PASS":
             raise PermissionError(f"Session refused: FAST verification failed. Reason: {verify_res.reason}")
             
+        if not self.token.birth_record.get("agent_pub_key"):
+            raise PermissionError("Session refused: Birth record carries no agent_pub_key. Keyless birth refused.")
+            
         self.manifest = self.token.birth_record.get("guardrails", {})
             
         # 3. Action log (feeds the drift chain)

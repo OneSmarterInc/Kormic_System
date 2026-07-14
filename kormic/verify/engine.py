@@ -7,6 +7,7 @@ from kormic.verify.cache import TrustCache
 from kormic.crypto.algorithms import MLDSASigner
 from kormic.utils.serialize import canonical_json, sha256_hex
 from kormic.utils.exceptions import VerificationError, PedigreeIntegrityError
+import os
 
 class Verifier:
     """
@@ -16,6 +17,11 @@ class Verifier:
     def __init__(self, registry: RegistryReader, cache: Optional[TrustCache] = None):
         self._registry = registry
         self._cache = cache
+        self._spent_challenges = set()
+
+    def generate_challenge(self) -> str:
+        """Issue a fresh, single-use nonce for challenge-response."""
+        return os.urandom(16).hex()
 
     def verify_fast(self, token: ProofToken) -> VerificationResult:
         """
@@ -90,22 +96,49 @@ class Verifier:
                 epoch_number=epoch_n
             )
 
-        # 5. [GAP 1 FIX] FAST MUST VERIFY THE HEAD via Challenge-Response
+        # 5. [GAP 1 FIX] FAST MUST authenticate the head via proof-of-possession. FAIL CLOSED.
         agent_pub_key_hex = birth_data.get("agent_pub_key", "")
-        if agent_pub_key_hex and token.challenge and token.signature:
-            agent_pub_bytes = bytes.fromhex(agent_pub_key_hex)
-            sig_bytes_agent = bytes.fromhex(token.signature)
+        if agent_pub_key_hex:
+            # The birth seals an agent key, so the presenter MUST prove possession
+            if not token.challenge or not token.signature:
+                return VerificationResult(
+                    status="HALT_HARD",
+                    reason="Head not authenticated: proof token carries no challenge/signature.",
+                    agent_code=agent_code, epoch_number=epoch_n)
+            
+            # Anti-Replay: Freshness window and Nonce tracking
+            if abs(time.time() - token.freshness_timestamp) > 300: # 5 minutes
+                return VerificationResult(
+                    status="HALT_HARD",
+                    reason="Token is expired or from the future (freshness_timestamp out of window).",
+                    agent_code=agent_code, epoch_number=epoch_n)
+            if token.challenge in self._spent_challenges:
+                return VerificationResult(
+                    status="HALT_HARD",
+                    reason="Replay Attack Detected: Challenge nonce has already been used.",
+                    agent_code=agent_code, epoch_number=epoch_n)
+            
+            try:
+                agent_pub_bytes = bytes.fromhex(agent_pub_key_hex)
+                sig_bytes_agent = bytes.fromhex(token.signature)
+            except ValueError:
+                return VerificationResult(
+                    status="HALT_HARD",
+                    reason="Head not authenticated: malformed agent key or signature.",
+                    agent_code=agent_code, epoch_number=epoch_n)
+
             # Bind the head into the signed payload
             bound_payload = (token.current_head + token.challenge).encode('utf-8')
             if not MLDSASigner.verify(agent_pub_bytes, bound_payload, sig_bytes_agent):
                 return VerificationResult(
                     status="HALT_HARD",
                     reason="Invalid FAST challenge signature. Agent cryptographic authentication failed.",
-                    agent_code=agent_code,
-                    epoch_number=epoch_n
-                )
+                    agent_code=agent_code, epoch_number=epoch_n)
+            
+            # Record challenge as spent
+            self._spent_challenges.add(token.challenge)
 
-        # 5. Success
+        # 6. Success
         return VerificationResult(
             status="PASS",
             reason="FAST verification passed. Origin authentic, running head recorded.",

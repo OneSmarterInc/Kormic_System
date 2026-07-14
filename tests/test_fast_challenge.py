@@ -65,10 +65,11 @@ class TestFastChallenge(unittest.TestCase):
             
     def test_fast_verify_works(self):
         # GAP 3: The WORKS test
+        import time
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         
-        challenge = os.urandom(16).hex()
+        challenge = self.verifier.generate_challenge()
         # Bind head to challenge
         payload = (ped.running_head + challenge).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
@@ -78,7 +79,7 @@ class TestFastChallenge(unittest.TestCase):
             birth_record=ped.birth_record.to_dict(),
             current_head=ped.running_head,
             history_length=0,
-            freshness_timestamp=12345.0,
+            freshness_timestamp=time.time(),
             authority_reference="test",
             challenge=challenge,
             signature=signature
@@ -89,10 +90,11 @@ class TestFastChallenge(unittest.TestCase):
         
     def test_fast_verify_tampered_head(self):
         # GAP 1: The FAILS-CORRECTLY test
+        import time
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         
-        challenge = os.urandom(16).hex()
+        challenge = self.verifier.generate_challenge()
         payload = (ped.running_head + challenge).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
         
@@ -103,7 +105,7 @@ class TestFastChallenge(unittest.TestCase):
             birth_record=ped.birth_record.to_dict(),
             current_head=tampered_head,
             history_length=0,
-            freshness_timestamp=12345.0,
+            freshness_timestamp=time.time(),
             authority_reference="test",
             challenge=challenge,
             signature=signature
@@ -113,6 +115,50 @@ class TestFastChallenge(unittest.TestCase):
         # Signature should fail because verification checks (tampered_head + challenge)
         self.assertEqual(res.status, "HALT_HARD")
         self.assertIn("Invalid FAST challenge signature", res.reason)
+
+    def test_fast_verify_missing_signature_fails_closed(self):
+        import time
+        ped_dict = self.store.get(self.ain)
+        ped = Pedigree.from_dict(ped_dict)
+        
+        # Attacker holds only PUBLIC birth record, no private key
+        tampered_head = "0000000000000000000000000000000000000000000000000000000000000000"
+        attacker_token = ProofToken(
+            agent_code=self.ain,
+            birth_record=ped.birth_record.to_dict(),
+            current_head=tampered_head,
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="x",
+            challenge="",
+            signature=""
+        )
+        
+        res = self.verifier.verify_fast(attacker_token)
+        self.assertEqual(res.status, "HALT_HARD")
+        self.assertIn("no challenge/signature", res.reason)
+
+    def test_credential_root_refuses_no_signature(self):
+        import time
+        from kormic.runtime.credential import CredentialRoot
+        ped_dict = self.store.get(self.ain)
+        ped = Pedigree.from_dict(ped_dict)
+        
+        attacker_token = ProofToken(
+            agent_code=self.ain,
+            birth_record=ped.birth_record.to_dict(),
+            current_head=ped.running_head,
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="x",
+            challenge="",
+            signature=""
+        )
+        
+        cr = CredentialRoot(self.verifier)
+        res = cr.issue_scoped_credential(attacker_token, "scope1")
+        self.assertFalse(res["granted"])
+        self.assertIn("no challenge/signature", res["reason"])
 
 if __name__ == '__main__':
     unittest.main()

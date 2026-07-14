@@ -1,5 +1,6 @@
 import unittest
 import os
+import time
 import uuid
 from kormic.models.verify import ProofToken
 from kormic.models.pedigree import Pedigree
@@ -88,7 +89,7 @@ class TestDriftWiring(unittest.TestCase):
             birth_record=ped.birth_record.to_dict(),
             current_head=ped.running_head,
             history_length=len(ped.history),
-            freshness_timestamp=12345.0,
+            freshness_timestamp=time.time(),
             authority_reference="test",
             challenge=challenge,
             signature=signature

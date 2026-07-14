@@ -1,3 +1,4 @@
+import time
 import unittest
 import os
 import uuid
@@ -21,13 +22,18 @@ class DummyShare(Share):
         self.idx = idx
         self.value = value
         
-def generate_dummy_shares(n: int) -> list:
-    return [DummyShare(i, os.urandom(32)) for i in range(1, n+1)]
+    @property
+    def share_index(self): return self.idx
+    @property
+    def share_data(self): return self.value
 
 class TestPhase3Ceremony(unittest.TestCase):
     def setUp(self):
         self.ceremony = ThresholdCeremony(n=5, standard_quorum=3)
-        self.shares = generate_dummy_shares(5)
+        # Use real Shamir shares instead of dummies
+        self.custody = SoftwareKeyCustody()
+        self.real_key = os.urandom(32)
+        self.shares = self.custody.wrap_twin_key(self.real_key)
         
     def _mock_create(self):
         return "Agent Created"
@@ -60,6 +66,12 @@ class TestPhase3Ceremony(unittest.TestCase):
         quorum_shares = self.shares[:4]
         with self.assertRaises(PermissionError):
             self.ceremony.authorize_catastrophic_destroy(quorum_shares, self._mock_destroy)
+
+    def test_ceremony_dummy_shares_fail(self):
+        # 3 out of 5 dummy shares provided (invalid Shamir format, index 0 is mathematically invalid in GF256)
+        dummy_shares = [DummyShare(0, os.urandom(32)) for _ in range(3)]
+        with self.assertRaises(PermissionError):
+            self.ceremony.authorize_create(dummy_shares, self._mock_create)
 
 class TestSelfDefense(unittest.TestCase):
     def setUp(self):
@@ -96,7 +108,7 @@ class TestSelfDefense(unittest.TestCase):
         challenge = os.urandom(16).hex()
         payload = (ped.running_head + challenge).encode('utf-8')
         sig = MLDSASigner.sign(self.agent_priv, payload).hex()
-        return ProofToken(self.ain, ped.birth_record.to_dict(), ped.running_head, len(ped.history), 12345.0, "test", challenge, sig)
+        return ProofToken(self.ain, ped.birth_record.to_dict(), ped.running_head, len(ped.history), time.time(), "test", challenge, sig)
 
     def test_self_isolate(self):
         token = self._get_token()

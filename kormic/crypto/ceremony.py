@@ -35,6 +35,13 @@ class ThresholdCeremony:
             self.logger.error(f"CEREMONY FAILED [{action}]: Provided {provided}/{self.n} shares. Required: {required}")
             raise PermissionError(f"Quorum not met for existential action: {action}. Provided {provided} shares, requires {required}.")
         
-        # In a real HSM, the shares would be cryptographically combined to unlock the master root key.
-        # Since we are using SoftwareKeyCustody, we simulate the authorization.
-        self.logger.warning(f"CEREMONY SUCCESS [{action}]: Threshold quorum met ({provided}/{self.n} shares verified).")
+        # Cryptographically validate shares using Shamir Secret Sharing
+        try:
+            from kormic.crypto.software import SoftwareKeyCustody
+            # If shares are invalid, unwrap will throw an error
+            SoftwareKeyCustody().unwrap_twin_key(shares[:required])
+        except Exception as e:
+            self.logger.error(f"CEREMONY FAILED [{action}]: Cryptographic validation of Shamir shares failed.")
+            raise PermissionError(f"Threshold quorum failed. Invalid or corrupted shares: {e}")
+
+        self.logger.warning(f"CEREMONY SUCCESS [{action}]: Threshold quorum cryptographically verified ({provided}/{self.n} shares).")

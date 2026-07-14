@@ -19,7 +19,10 @@ class TestTwinChurnSnapshot(unittest.TestCase):
     def tearDown(self):
         import os
         if os.path.exists(self.db_path):
-            os.remove(self.db_path)
+            try:
+                os.remove(self.db_path)
+            except OSError:
+                pass # Windows holds the SQLite lock until GC, safe to ignore for temp files.
 
     def test_snapshot_twin_bounded_loss(self):
         """

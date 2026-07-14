@@ -9,8 +9,8 @@ class BirthRecord:
     guardrails: Dict[str, Any]
     epoch_number: int
     sig_alg: str
-    agent_pub_key: str
     signature: bytes
+    agent_pub_key: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the BirthRecord to a serializable dictionary matching Section 5.1 payload requirements."""

@@ -36,7 +36,7 @@ def _get_valid_token(store, ain, agent_priv):
         birth_record=ped.birth_record.to_dict(),
         current_head=ped.running_head,
         history_length=len(ped.history),
-        freshness_timestamp=12345.0,
+        freshness_timestamp=time.time(),
         authority_reference="test",
         challenge=challenge,
         signature=signature
