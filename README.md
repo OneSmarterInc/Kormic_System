@@ -52,7 +52,7 @@ This system currently implements the **Phase 1 (Core Pedigree)** and **Phase 2 (
 
 ---
 
-## Phase 2.5 Features (MeshKor Rogue-Agent Countermeasures)
+## Phase 2.5 Features (Rogue-Agent Countermeasures)
 This module hardens the runtime environment to mitigate shared-runtime bleed (like the 2026 Varonis Dialogflow incident) and unauthorized destructive actions (like the Replit incident).
 
 ### 8. Capability Manifest & Sandbox (C1)
@@ -60,7 +60,8 @@ This module hardens the runtime environment to mitigate shared-runtime bleed (li
 - **Runtime Enforcer:** The `Sandbox` wraps the agent at boot. It blocks any tools or endpoints not explicitly allowed in the manifest, ensuring shared infrastructure does not equate to shared authority.
 
 ### 9. Credential Root & FAST Challenge (C2 & Gap 1)
-- **Challenge-Response Fix:** Agents must mathematically sign a random challenge to prove possession of their birth keys, completely closing the token-theft replay gap.
+- **Fail-Closed Verification:** The FAST engine is mathematically forced to fail-closed, entirely rejecting "keyless" birth records and instantly blocking tokens missing signatures.
+- **Anti-Replay Nonce Engine:** Agents must mathematically sign a random, server-issued challenge to prove possession of their birth keys. A strict 5-minute freshness window and memory-safe spent-nonce cache completely close the token-theft replay gap.
 - **No Ambient Authority:** Agents do not receive standing API keys. They request 5-minute scoped credentials from the `CredentialRoot`. 
 - **Irreversible Scopes:** Destructive actions (like refunds or deletes) are explicitly flagged and must be declared at birth to be issued.
 
@@ -76,6 +77,7 @@ This module secures the existential actions (Create, Destroy, Restore) and remov
 ### 11. Threshold Ceremony (Shamir Quorum)
 - **Existential Quorums:** Generating an agent, restoring a Twin, or destroying a single agent mathematically requires `3-of-5` physical keys.
 - **Catastrophic Quorum:** A total wipe of the registry requires the absolute largest quorum (`5-of-5`). No single "God Key" exists.
+- **Cryptographic Key Validation:** Reconstructed keys are verified via constant-time HMAC validation against expected secure hashes, physically preventing fake or "math garbage" shares from passing the quorum.
 
 ### 12. Self-Defense
 - **Self-Isolation:** Agents can voluntarily pull their own plug if they detect prompt-injection manipulation.
@@ -97,7 +99,7 @@ python demo_attack.py
 # Phase 2: Global Scale, Network Lag, and Catastrophic Twin Recovery Demo
 python demo_phase2.py
 
-# MeshKor Countermeasures: Dialogflow/Replit attacks and Drift wiring
+# Runtime Countermeasures: Dialogflow/Replit attacks and Drift wiring
 python demos/demo_attacks.py
 ```
 

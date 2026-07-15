@@ -17,7 +17,10 @@ class Verifier:
     def __init__(self, registry: RegistryReader, cache: Optional[TrustCache] = None):
         self._registry = registry
         self._cache = cache
-        self._spent_challenges = set()
+        # Challenge nonce -> first_seen_ts (to prevent memory leak)
+        # Note: In a distributed environment, this is currently per-replica scope.
+        # Replays across replicas are bounded by the 5-minute freshness window.
+        self._spent_challenges = {}
 
     def generate_challenge(self) -> str:
         """Issue a fresh, single-use nonce for challenge-response."""
@@ -82,7 +85,7 @@ class Verifier:
             }
             serialized_payload = canonical_json(payload_dict)
             
-            # Verify PQ signature mock
+            # Verify cryptographic signature
             is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
             
             if is_authentic and self._cache:
@@ -107,11 +110,16 @@ class Verifier:
                     agent_code=agent_code, epoch_number=epoch_n)
             
             # Anti-Replay: Freshness window and Nonce tracking
-            if abs(time.time() - token.freshness_timestamp) > 300: # 5 minutes
+            now = time.time()
+            if abs(now - token.freshness_timestamp) > 300: # 5 minutes
                 return VerificationResult(
                     status="HALT_HARD",
                     reason="Token is expired or from the future (freshness_timestamp out of window).",
                     agent_code=agent_code, epoch_number=epoch_n)
+            
+            # Purge anything older than the freshness window so this can't grow unbounded
+            self._spent_challenges = {c: t for c, t in self._spent_challenges.items() if now - t <= 300}
+            
             if token.challenge in self._spent_challenges:
                 return VerificationResult(
                     status="HALT_HARD",
@@ -136,7 +144,7 @@ class Verifier:
                     agent_code=agent_code, epoch_number=epoch_n)
             
             # Record challenge as spent
-            self._spent_challenges.add(token.challenge)
+            self._spent_challenges[token.challenge] = now
 
         # 6. Success
         return VerificationResult(

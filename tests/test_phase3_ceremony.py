@@ -29,11 +29,17 @@ class DummyShare(Share):
 
 class TestPhase3Ceremony(unittest.TestCase):
     def setUp(self):
-        self.ceremony = ThresholdCeremony(n=5, standard_quorum=3)
         # Use real Shamir shares instead of dummies
         self.custody = SoftwareKeyCustody()
         self.real_key = os.urandom(32)
+        import hashlib
+        self.expected_hash = hashlib.sha256(self.real_key).hexdigest()
+        self.ceremony = ThresholdCeremony(self.expected_hash, n=5, standard_quorum=3)
         self.shares = self.custody.wrap_twin_key(self.real_key)
+        
+        # For the wrong-but-well-formed test
+        self.wrong_key = os.urandom(32)
+        self.wrong_shares = self.custody.wrap_twin_key(self.wrong_key)
         
     def _mock_create(self):
         return "Agent Created"
@@ -72,6 +78,12 @@ class TestPhase3Ceremony(unittest.TestCase):
         dummy_shares = [DummyShare(0, os.urandom(32)) for _ in range(3)]
         with self.assertRaises(PermissionError):
             self.ceremony.authorize_create(dummy_shares, self._mock_create)
+
+    def test_ceremony_wrong_valid_shares_fail(self):
+        # 3 out of 5 shares provided, perfectly valid Shamir format, but from a different split
+        wrong_quorum_shares = self.wrong_shares[:3]
+        with self.assertRaises(PermissionError):
+            self.ceremony.authorize_create(wrong_quorum_shares, self._mock_create)
 
 class TestSelfDefense(unittest.TestCase):
     def setUp(self):

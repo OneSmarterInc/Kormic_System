@@ -7,9 +7,10 @@ class ThresholdCeremony:
     Implements Phase 3 Threshold Key Ceremony for existential actions.
     (Self-Destruct is fundamentally impossible in this architecture).
     """
-    def __init__(self, n: int = 5, standard_quorum: int = 3):
+    def __init__(self, expected_key_hash: str, n: int = 5, standard_quorum: int = 3):
         self.n = n
         self.k = standard_quorum
+        self.expected_key_hash = expected_key_hash
         self.logger = logging.getLogger("Ceremony")
 
     def authorize_create(self, shares: List[Share], create_func: Callable, *args, **kwargs) -> Any:
@@ -38,10 +39,16 @@ class ThresholdCeremony:
         # Cryptographically validate shares using Shamir Secret Sharing
         try:
             from kormic.crypto.software import SoftwareKeyCustody
+            import hashlib
+            import hmac
             # If shares are invalid, unwrap will throw an error
-            SoftwareKeyCustody().unwrap_twin_key(shares[:required])
+            reconstructed = SoftwareKeyCustody().unwrap_twin_key(shares[:required])
+            reconstructed_hash = hashlib.sha256(reconstructed).hexdigest()
+            if not hmac.compare_digest(reconstructed_hash.encode('utf-8'), self.expected_key_hash.encode('utf-8')):
+                raise PermissionError(f"Threshold quorum failed: shares reconstruct the wrong key.")
         except Exception as e:
             self.logger.error(f"CEREMONY FAILED [{action}]: Cryptographic validation of Shamir shares failed.")
             raise PermissionError(f"Threshold quorum failed. Invalid or corrupted shares: {e}")
 
         self.logger.warning(f"CEREMONY SUCCESS [{action}]: Threshold quorum cryptographically verified ({provided}/{self.n} shares).")
+    
