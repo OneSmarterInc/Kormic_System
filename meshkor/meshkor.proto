@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package meshkor.v1;
+
+// The central service hosted by the Sidecar Daemon on localhost
+service MeshKorSidecar {
+  // Enrolls a new agent pubkey and fetches its Birth Record
+  rpc EnrollAgent (EnrollRequest) returns (EnrollResponse);
+  
+  // Fetches a fresh challenge nonce for interactive token minting
+  rpc GetChallenge (ChallengeRequest) returns (ChallengeResponse);
+  
+  // Fetches the agent's pedigree (for syncing history)
+  rpc GetPedigree (PedigreeRequest) returns (PedigreeResponse);
+}
+
+message EnrollRequest {
+  string agent_type = 1;
+  string entity_ref = 2;
+  string instance = 3;
+  string real_world_id = 4;
+  string manifest_json = 5;
+  string agent_pub_key = 6;
+}
+
+message EnrollResponse {
+  string ain = 1;
+}
+
+message PedigreeRequest {
+  string ain = 1;
+}
+
+message PedigreeResponse {
+  string pedigree_json = 1;
+}
+
+message ChallengeRequest {}
+
+message ChallengeResponse {
+  string nonce = 1;
+}

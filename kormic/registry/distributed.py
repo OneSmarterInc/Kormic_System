@@ -16,6 +16,8 @@ class RegistrySnapshot:
     epochs: Dict[str, str]  # epoch_n (str) -> public_key_hex
     revoked_epochs: List[int]
     revoked_agents: List[str]
+    spent_nonces: List[str]
+    checkpoint_indices: Dict[str, int]
     root_sig_hex: str = ""
 
     def payload(self) -> bytes:
@@ -24,7 +26,9 @@ class RegistrySnapshot:
             "issued_at": self.issued_at,
             "epochs": self.epochs,
             "revoked_epochs": sorted(self.revoked_epochs),
-            "revoked_agents": sorted(self.revoked_agents)
+            "revoked_agents": sorted(self.revoked_agents),
+            "spent_nonces": sorted(self.spent_nonces),
+            "checkpoint_indices": self.checkpoint_indices
         }, sort_keys=True).encode('utf-8')
 
 
@@ -37,6 +41,17 @@ class CentralRegistryAuthority:
         self.key_custody = key_custody
         self.version = 0
         self.revoked_agents = set()
+        self.spent_nonces = set()
+        self.checkpoint_indices = {}
+
+    def spend_nonce(self, nonce: str) -> None:
+        self.spent_nonces.add(nonce)
+        self.version += 1
+
+    def update_checkpoint(self, agent_code: str, index: int) -> None:
+        if index > self.checkpoint_indices.get(agent_code, 0):
+            self.checkpoint_indices[agent_code] = index
+            self.version += 1
 
     def revoke_agent(self, agent_code: str) -> None:
         self.revoked_agents.add(agent_code)
@@ -59,7 +74,9 @@ class CentralRegistryAuthority:
             issued_at=time.time(),
             epochs=epochs_dict,
             revoked_epochs=revoked_epochs,
-            revoked_agents=list(self.revoked_agents)
+            revoked_agents=list(self.revoked_agents),
+            spent_nonces=list(self.spent_nonces),
+            checkpoint_indices=self.checkpoint_indices.copy()
         )
         # Sign the payload using the root private key
         root_priv = self.key_custody._root_priv
@@ -82,6 +99,8 @@ class RegionalReplicaRegistry(RegistryReader):
         self.snapshot: Optional[RegistrySnapshot] = None
         self.last_sync: float = 0.0
         self.revoked_filter = ScalableRevocationFilter()
+        self.spent_nonces = set()
+        self.checkpoint_indices = {}
 
     def apply_snapshot(self, snap: RegistrySnapshot) -> bool:
         """
@@ -109,6 +128,9 @@ class RegionalReplicaRegistry(RegistryReader):
         self.revoked_filter.load_from_snapshot(snap.revoked_agents)
         for epoch in snap.revoked_epochs:
             self.revoked_filter.add(f"EPOCH:{epoch}")
+            
+        self.spent_nonces = set(snap.spent_nonces)
+        self.checkpoint_indices = snap.checkpoint_indices
             
         kormic_logger.info("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot v{snap.version} received. Local Bloom Filter updated.")
         return True

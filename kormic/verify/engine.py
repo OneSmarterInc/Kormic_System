@@ -109,18 +109,27 @@ class Verifier:
                     reason="Head not authenticated: proof token carries no challenge/signature.",
                     agent_code=agent_code, epoch_number=epoch_n)
             
-            # Anti-Replay: Freshness window and Nonce tracking
+            # Anti-Replay and Clock Skew (GAP 3): Strict ±30s tolerance
             now = time.time()
-            if abs(now - token.freshness_timestamp) > 300: # 5 minutes
+            skew = now - token.freshness_timestamp
+            
+            # If the token is more than 30 seconds in the future (skew < -30) or past TTL
+            if skew < -30 or skew > 300: # 5 minute TTL, but strictly bounds future tokens
                 return VerificationResult(
                     status="HALT_HARD",
-                    reason="Token is expired or from the future (freshness_timestamp out of window).",
+                    reason=f"Token freshness out of bounds (Clock Skew/Expiry). Skew: {skew:.2f}s",
                     agent_code=agent_code, epoch_number=epoch_n)
             
             # Purge anything older than the freshness window so this can't grow unbounded
             self._spent_challenges = {c: t for c, t in self._spent_challenges.items() if now - t <= 300}
             
+            is_spent = False
             if token.challenge in self._spent_challenges:
+                is_spent = True
+            elif hasattr(self._registry, 'spent_nonces') and token.challenge in self._registry.spent_nonces:
+                is_spent = True
+                
+            if is_spent:
                 return VerificationResult(
                     status="HALT_HARD",
                     reason="Replay Attack Detected: Challenge nonce has already been used.",

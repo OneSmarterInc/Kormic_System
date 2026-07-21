@@ -23,6 +23,11 @@ class Authority(ABC):
         pass
 
     @abstractmethod
+    def record_event(self, ain: str, event_description: str) -> str:
+        """Records an event with the Authority and returns the new head."""
+        pass
+
+    @abstractmethod
     def issue_challenge(self) -> str:
         """Returns a cryptographic nonce for challenge-response."""
         pass
@@ -49,6 +54,13 @@ class LocalAuthority(Authority):
 
     def get_pedigree(self, ain: str) -> dict:
         return self._manager.record_store.get(ain)
+
+    def record_event(self, ain: str, event_description: str) -> str:
+        self._manager.add_event(ain, event_description)
+        # Sync snapshot so verifier has latest history
+        self._regional_replica.apply_snapshot(self._central_registry.snapshot())
+        ped = self._manager.record_store.get(ain)
+        return ped['running_head']
 
     def get_verifier(self):
         return self._verifier

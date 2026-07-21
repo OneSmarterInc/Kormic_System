@@ -44,9 +44,8 @@ class MeshKorAgent:
         )
         
     def record_event(self, event_description: str):
-        """Advances the Tamper-Evident History chain locally."""
-        payload = (self.current_head + event_description).encode('utf-8')
-        self.current_head = hashlib.sha256(payload).hexdigest()
+        """Advances the Tamper-Evident History chain on the Authority."""
+        self.current_head = self.authority.record_event(self.ain, event_description)
         self.history_length += 1
         
     def mint_token(self, challenge: Optional[str] = None) -> ProofToken:
