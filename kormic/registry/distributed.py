@@ -93,14 +93,21 @@ class RegionalReplicaRegistry(RegistryReader):
     Regional Replica. Verifiers read THIS locally. Pulls signed snapshots from
     the Central Authority. Uses a local Bloom Filter for O(1) revocation checks.
     """
-    def __init__(self, region: str, root_pub_key: bytes):
+    def __init__(self, region: str, root_pub_key: bytes, central_sync=None):
         self.region = region
         self.root_pub_key = root_pub_key
+        self.central_sync = central_sync
         self.snapshot: Optional[RegistrySnapshot] = None
         self.last_sync: float = 0.0
         self.revoked_filter = ScalableRevocationFilter()
         self.spent_nonces = set()
         self.checkpoint_indices = {}
+
+    def spend_nonce(self, nonce: str) -> None:
+        """Saves locally and pushes upstream to central authority if connected."""
+        self.spent_nonces.add(nonce)
+        if self.central_sync:
+            self.central_sync.spend_nonce(nonce)
 
     def apply_snapshot(self, snap: RegistrySnapshot) -> bool:
         """

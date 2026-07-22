@@ -21,3 +21,7 @@ class RegistryReader(Protocol):
     def get_epoch_public_key(self, epoch_n: int) -> Optional[bytes]:
         """Gets the epoch verification public key."""
         ...
+
+    def spend_nonce(self, nonce: str) -> None:
+        """Promotes a spent nonce to the global authority to prevent multi-region replay attacks."""
+        ...

@@ -57,8 +57,6 @@ class LocalAuthority(Authority):
 
     def record_event(self, ain: str, event_description: str) -> str:
         self._manager.add_event(ain, event_description)
-        # Sync snapshot so verifier has latest history
-        self._regional_replica.apply_snapshot(self._central_registry.snapshot())
         ped = self._manager.record_store.get(ain)
         return ped['running_head']
 

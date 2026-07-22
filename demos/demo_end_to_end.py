@@ -99,15 +99,74 @@ def run_demo():
         input("\nPress [Enter] to simulate a Hacker attack...")
         print("\n[ATTACKER] Hacker manipulates the token's running head to hide actions...")
         
-        # Modify the token's head
         import dataclasses
-        token = dataclasses.replace(token, current_head="0000000000000000000000000000000000000000000000000000000000000000")
+        from kormic.crypto.algorithms import MLDSASigner
         
-        print("\n[RECEIVER] Validating the tampered token...")
-        hacker_verdict = rc.validate(token)
+        # Mint a FRESH token for the attack to avoid tripping the replay detector
+        hacker_challenge = rc.new_challenge()
+        fake_head = "0000000000000000000000000000000000000000000000000000000000000000"
+        
+        # Hacker signs the fake head
+        payload = (fake_head + hacker_challenge).encode('utf-8')
+        forged_sig = MLDSASigner.sign(agent.private_key, payload).hex()
+        
+        forged_token = dataclasses.replace(
+            agent.mint_token(hacker_challenge),
+            current_head=fake_head,
+            signature=forged_sig
+        )
+        
+        print("\n[RECEIVER] Validating the tampered token using FULL Verification...")
+        ped_dict = authority.get_pedigree(agent.ain)
+        from kormic.models.pedigree import Pedigree
+        history_links = Pedigree.from_dict(ped_dict).history
+        
+        # Use verify_full for history inspection
+        hacker_verdict = authority.get_verifier().verify_full(forged_token, history_links)
         print(f"  -> RESULT: {hacker_verdict.status} | Reason: {hacker_verdict.reason}")
-        print("  -> SUCCESS: The MeshKor SDK mathematically blocked the forgery.")
+        print("  -> SUCCESS: The MeshKor Engine mathematically blocked the history forgery.")
+
+        # =========================================================
+        # THE RESOURCE-SIDE ENFORCEMENT (Credential Root)
+        # =========================================================
+        input("\nPress [Enter] to simulate Resource-Side Enforcement (Envoy/DB)...")
+        print("\n[DB PROXY] Wrapping token in a short-lived Credential...")
         
+        # Valid token credential issue
+        cred = CredentialRoot(
+            token=token,
+            scopes=["quote.read"],
+            expires_at=time.time() + 300,
+            issued_by="kormic.io"
+        )
+        
+        print(f"  -> SUCCESS: Credential minted for scope 'quote.read'. Valid? {cred.is_valid()}")
+        
+        print("\n[DB PROXY] Agent tries to access an unauthorized scope 'quote.write'...")
+        bad_cred = CredentialRoot(
+            token=token,
+            scopes=["quote.write"],
+            expires_at=time.time() + 300,
+            issued_by="kormic.io"
+        )
+        print(f"  -> RESULT: Scope mismatch. Valid? {bad_cred.is_valid(required_scope='quote.write')}")
+        
+        # =========================================================
+        # THE ADMIN PERSPECTIVE (REVOCATION)
+        # =========================================================
+        input("\nPress [Enter] to simulate Admin Revocation...")
+        print(f"\n[ADMIN] CISO clicks 'Revoke' on Agent {agent.ain}...")
+        
+        # Revoke globally
+        central.revoke_agent(agent.ain)
+        replica.apply_snapshot(central.snapshot())
+        
+        print("\n[RECEIVER] Agent tries to authenticate again...")
+        revoked_challenge = rc.new_challenge()
+        revoked_token = agent.mint_token(revoked_challenge)
+        
+        revoked_verdict = rc.validate(revoked_token)
+        print(f"  -> RESULT: {revoked_verdict.status} | Reason: {revoked_verdict.reason}")
         
         print("\n" + "=" * 80)
         print("Demo completed successfully. The SDK is ready for builders.")

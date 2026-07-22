@@ -152,8 +152,10 @@ class Verifier:
                     reason="Invalid FAST challenge signature. Agent cryptographic authentication failed.",
                     agent_code=agent_code, epoch_number=epoch_n)
             
-            # Record challenge as spent
+            # Record challenge as spent locally and promote to global authority
             self._spent_challenges[token.challenge] = now
+            if hasattr(self._registry, 'spend_nonce'):
+                self._registry.spend_nonce(token.challenge)
 
         # 6. Success
         return VerificationResult(

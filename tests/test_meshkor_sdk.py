@@ -97,16 +97,30 @@ def test_sdk_forged_but_signed_head(meshkor_system):
         signature=forged_sig
     )
     
-    # FAST accepts it (O(1) signature check passes)
-    # Note: Decisions relying on history MUST use verify_full. FAST is for origin/possession.
     fast_verdict = rc.validate(forged_token)
     assert fast_verdict.ok is True
     
-    # FULL rejects it (Walks the actual history and sees the mismatch)
+    # PROTOCOL DECISION: Should FULL spend the nonce when it re-runs FAST internally?
+    # Yes. Any genuine FAST->FULL escalation must require a fresh challenge-response 
+    # to prove real-time liveness during the escalation. We mint a fresh token here 
+    # to avoid the replay trap and test the actual head-matching logic.
+    challenge_full = rc.new_challenge()
+    payload_full = (fake_head + challenge_full).encode('utf-8')
+    forged_sig_full = MLDSASigner.sign(agent.private_key, payload_full).hex()
+    
+    forged_token_full = dataclasses.replace(
+        agent.mint_token(challenge_full),
+        current_head=fake_head,
+        signature=forged_sig_full
+    )
+    
+    # FULL rejects it (Walks the actual history and sees the head mismatch)
     ped_dict = authority.get_pedigree(agent.ain)
     history_links = Pedigree.from_dict(ped_dict).history
-    full_result = authority.get_verifier().verify_full(forged_token, history_links)
+    full_result = authority.get_verifier().verify_full(forged_token_full, history_links)
+    
     assert full_result.status == "HALT_HARD"
+    assert "does not match token head" in full_result.reason
 
 def test_sdk_replayed_token(meshkor_system):
     authority = meshkor_system

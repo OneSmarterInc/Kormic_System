@@ -12,6 +12,12 @@ service MeshKorSidecar {
   
   // Fetches the agent's pedigree (for syncing history)
   rpc GetPedigree (PedigreeRequest) returns (PedigreeResponse);
+  
+  // Anchors an event using Hash-Only Privacy
+  rpc RecordEvent (RecordRequest) returns (RecordResponse);
+  
+  // Local verification of the token
+  rpc VerifyToken (VerifyRequest) returns (VerifyResponse);
 }
 
 message EnrollRequest {
@@ -39,4 +45,23 @@ message ChallengeRequest {}
 
 message ChallengeResponse {
   string nonce = 1;
+}
+
+message RecordRequest {
+  string ain = 1;
+  string event_data = 2;
+}
+
+message RecordResponse {
+  string new_head = 1;
+}
+
+message VerifyRequest {
+  string ain = 1;
+  string token_json = 2;
+}
+
+message VerifyResponse {
+  string status = 1;
+  string reason = 2;
 }

@@ -55,24 +55,43 @@ def test_gap3_clock_skew_expired(phase4_system):
     assert verdict.ok is False
     assert "Clock Skew" in verdict.reason
 
-def test_gap2_distributed_nonce_sync(phase4_system):
+def test_gap2_distributed_nonce_sync(tmp_path):
     """Test GAP 2: Spent nonces sync globally across replicas"""
-    manager, central, replica, verifier, authority = phase4_system
+    db_path = str(tmp_path / "test_gap2.db")
+    keys = SoftwareKeyCustody()
+    keys.generate_epoch_key(1)
+    store = SQLiteRecordStore(db_path)
+    manager = AgentManager(keys, store, default_epoch=1)
+    central = CentralRegistryAuthority(keys)
     
-    # Simulate spending a nonce on the Central Authority
-    challenge = "global_spent_nonce_123"
-    central.spend_nonce(challenge)
+    # Replica A (us-east) connected to Central
+    replica_a = RegionalReplicaRegistry("us-east", keys._root_pub, central_sync=central)
+    verifier_a = Verifier(replica_a)
+    authority_a = LocalAuthority(manager, verifier_a, central, replica_a)
+    rc_a = ReceiverClient(authority_a)
     
-    # Sync the regional replica (this proves the state is distributed)
-    replica.apply_snapshot(central.snapshot())
+    # Replica B (eu-west) connected to Central
+    replica_b = RegionalReplicaRegistry("eu-west", keys._root_pub, central_sync=central)
+    verifier_b = Verifier(replica_b)
+    authority_b = LocalAuthority(manager, verifier_b, central, replica_b)
+    rc_b = ReceiverClient(authority_b)
     
-    # The verifier checks the regional replica. It should now know the nonce is spent.
-    agent = MeshKorAgent.enroll(authority, "CMP", "test_co", "0001", "id123", {})
-    token = agent.mint_token(challenge)
+    agent = MeshKorAgent.enroll(authority_a, "CMP", "test_co", "0001", "id123", {})
     
-    verdict = rc = ReceiverClient(authority).validate(token)
-    assert verdict.ok is False
-    assert "Replay Attack Detected" in verdict.reason
+    # Generate a single token
+    token = agent.mint_token(rc_a.new_challenge())
+    
+    # 1. Use the token in Region A (This should pass AND promote the spent nonce to Central)
+    verdict_a = rc_a.validate(token)
+    assert verdict_a.ok is True
+    
+    # 2. Sync Region B to get the latest snapshot from Central
+    replica_b.apply_snapshot(central.snapshot())
+    
+    # 3. Attempt a replay attack using the SAME token in Region B
+    verdict_b = rc_b.validate(token)
+    assert verdict_b.ok is False
+    assert "Replay Attack Detected" in verdict_b.reason
 
 def test_hash_only_anchoring_record(phase4_system):
     """Test Part 3: Engine accepts blind hashes instead of raw PII"""
