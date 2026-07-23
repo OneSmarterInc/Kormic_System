@@ -24,8 +24,8 @@ def run_phase2_demo():
     # 1. Setup Distributed Architecture
     central = CentralRegistryAuthority(key_custody)
     root_pub = key_custody.get_root_public_key()
-    replica_us = RegionalReplicaRegistry("us-east", root_pub)
-    replica_india = RegionalReplicaRegistry("india-south", root_pub)
+    replica_us = RegionalReplicaRegistry("us-east", root_pub, central_sync=central_hq)
+    replica_india = RegionalReplicaRegistry("india-south", root_pub, central_sync=central_hq)
     
     # 2. Manager and Verifiers
     manager = AgentManager(key_custody, record_store)

@@ -21,7 +21,7 @@ def setup_local_engine():
     store = SQLiteRecordStore(db_path)
     manager = AgentManager(keys, store, default_epoch=1)
     central = CentralRegistryAuthority(keys)
-    replica = RegionalReplicaRegistry("us-east", keys._root_pub)
+    replica = RegionalReplicaRegistry("us-east", keys._root_pub, central_sync=central)
     verifier = Verifier(replica)
     return manager, verifier, central, replica, db_path, store
 
@@ -132,24 +132,25 @@ def run_demo():
         input("\nPress [Enter] to simulate Resource-Side Enforcement (Envoy/DB)...")
         print("\n[DB PROXY] Wrapping token in a short-lived Credential...")
         
-        # Valid token credential issue
-        cred = CredentialRoot(
-            token=token,
-            scopes=["quote.read"],
-            expires_at=time.time() + 300,
-            issued_by="kormic.io"
-        )
+        # Instantiate the root using the verifier
+        cred_root = CredentialRoot(verifier=authority.get_verifier())
         
-        print(f"  -> SUCCESS: Credential minted for scope 'quote.read'. Valid? {cred.is_valid()}")
+        # 1. Valid token credential issue for an ALLOWED scope
+        cred_challenge_1 = rc.new_challenge()
+        cred_token_1 = agent.mint_token(cred_challenge_1)
         
+        good_res = cred_root.issue_scoped_credential(cred_token_1, requested_scope="quote.read")
+        print(f"  -> SUCCESS: Credential minted for scope 'quote.read'. Granted? {good_res['granted']}")
+        if good_res['granted']:
+            print(f"     [Token: {good_res['token']}]")
+        
+        # 2. Attempt to get a credential for a DISALLOWED scope
         print("\n[DB PROXY] Agent tries to access an unauthorized scope 'quote.write'...")
-        bad_cred = CredentialRoot(
-            token=token,
-            scopes=["quote.write"],
-            expires_at=time.time() + 300,
-            issued_by="kormic.io"
-        )
-        print(f"  -> RESULT: Scope mismatch. Valid? {bad_cred.is_valid(required_scope='quote.write')}")
+        cred_challenge_2 = rc.new_challenge()
+        cred_token_2 = agent.mint_token(cred_challenge_2)
+        
+        bad_res = cred_root.issue_scoped_credential(cred_token_2, requested_scope="quote.write")
+        print(f"  -> RESULT: Scope mismatch. Granted? {bad_res['granted']} | Reason: {bad_res['reason']}")
         
         # =========================================================
         # THE ADMIN PERSPECTIVE (REVOCATION)

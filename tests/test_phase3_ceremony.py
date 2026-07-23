@@ -97,7 +97,7 @@ class TestSelfDefense(unittest.TestCase):
         self.manager = AgentManager(self.keys, self.store, default_epoch=1)
         
         self.central = CentralRegistryAuthority(self.keys)
-        self.replica = RegionalReplicaRegistry("test", self.keys._root_pub)
+        self.replica = RegionalReplicaRegistry("test", self.keys._root_pub, central_sync=self.central)
         self.verifier = Verifier(self.replica)
         self.monitor = BehaviorMonitor(BehaviorConfig(0.8,0.5,0.2,0.5,0.1,0.3,2.0,5.0))
         

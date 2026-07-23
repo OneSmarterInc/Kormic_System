@@ -1,6 +1,7 @@
 import os
 import sys
 import uuid
+import time
 sys.path.insert(0, os.path.abspath('.'))
 from kormic.crypto.software import SoftwareKeyCustody
 from kormic.crypto.algorithms import MLDSASigner
@@ -52,7 +53,7 @@ def run_demo():
     store = SQLiteRecordStore(db_path)
     manager = AgentManager(keys, store, default_epoch=1)
     central = CentralRegistryAuthority(keys)
-    replica = RegionalReplicaRegistry("us-east", keys._root_pub)
+    replica = RegionalReplicaRegistry("us-east", keys._root_pub, central_sync=central)
     verifier = Verifier(replica)
     credential_root = CredentialRoot(verifier)
     monitor = BehaviorMonitor(BehaviorConfig(

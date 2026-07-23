@@ -29,7 +29,7 @@ class TestMeshKorEndToEnd(unittest.TestCase):
         self.store = SQLiteRecordStore(self.db_path)
         self.manager = AgentManager(self.keys, self.store, default_epoch=1)
         self.central = CentralRegistryAuthority(self.keys)
-        self.replica = RegionalReplicaRegistry("us-east", self.keys._root_pub)
+        self.replica = RegionalReplicaRegistry("us-east", self.keys._root_pub, central_sync=self.central)
         self.verifier = Verifier(self.replica)
         self.credential_root = CredentialRoot(self.verifier)
         self.monitor = BehaviorMonitor(BehaviorConfig(

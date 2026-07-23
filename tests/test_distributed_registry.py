@@ -39,8 +39,8 @@ class TestDistributedRegistry(unittest.TestCase):
         baseline_snap = self.central.snapshot()
         
         root_pub = self.key_custody.get_root_public_key()
-        self.us_east = RegionalReplicaRegistry("us-east", root_pub)
-        self.india_south = RegionalReplicaRegistry("india-south", root_pub)
+        self.us_east = RegionalReplicaRegistry("us-east", root_pub, central_sync=self.central)
+        self.india_south = RegionalReplicaRegistry("india-south", root_pub, central_sync=self.central)
         
         # Apply baseline snapshot so both have the epoch keys
         self.assertTrue(self.us_east.apply_snapshot(baseline_snap))

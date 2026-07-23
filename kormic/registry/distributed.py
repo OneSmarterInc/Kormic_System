@@ -41,12 +41,17 @@ class CentralRegistryAuthority:
         self.key_custody = key_custody
         self.version = 0
         self.revoked_agents = set()
-        self.spent_nonces = set()
+        self.spent_nonces: Dict[str, float] = {}
         self.checkpoint_indices = {}
 
+    def _purge_old_nonces(self):
+        now = time.time()
+        self.spent_nonces = {n: t for n, t in self.spent_nonces.items() if now - t <= 300}
+
     def spend_nonce(self, nonce: str) -> None:
-        self.spent_nonces.add(nonce)
-        self.version += 1
+        self.spent_nonces[nonce] = time.time()
+        self._purge_old_nonces()
+        # Routine verification no longer bumps the global snapshot version
 
     def update_checkpoint(self, agent_code: str, index: int) -> None:
         if index > self.checkpoint_indices.get(agent_code, 0):
@@ -62,6 +67,7 @@ class CentralRegistryAuthority:
         self.version += 1
 
     def snapshot(self) -> RegistrySnapshot:
+        self._purge_old_nonces()
         # Collect all active and revoked epochs from key custody
         epochs_dict = {}
         for epoch_n, (_, pub) in self.key_custody._epoch_keys.items():
@@ -75,7 +81,7 @@ class CentralRegistryAuthority:
             epochs=epochs_dict,
             revoked_epochs=revoked_epochs,
             revoked_agents=list(self.revoked_agents),
-            spent_nonces=list(self.spent_nonces),
+            spent_nonces=list(self.spent_nonces.keys()),
             checkpoint_indices=self.checkpoint_indices.copy()
         )
         # Sign the payload using the root private key
@@ -83,7 +89,7 @@ class CentralRegistryAuthority:
         snap.root_sig_hex = MLDSASigner.sign(root_priv, snap.payload()).hex()
         
         from kormic.logger import kormic_logger
-        kormic_logger.info("SNAPSHOT_GENERATE", "CENTRAL", f"Signed Global Snapshot v{snap.version} (Contains {len(self.revoked_agents)} revocations)")
+        kormic_logger.info("SNAPSHOT_GENERATE", "CENTRAL", f"Signed Global Snapshot v{snap.version} (Contains {len(self.revoked_agents)} revocations, {len(self.spent_nonces)} nonces)")
         
         return snap
 
@@ -102,6 +108,10 @@ class RegionalReplicaRegistry(RegistryReader):
         self.revoked_filter = ScalableRevocationFilter()
         self.spent_nonces = set()
         self.checkpoint_indices = {}
+        
+        if self.central_sync is None:
+            from kormic.logger import kormic_logger
+            kormic_logger.warning("REPLICA_INIT", f"REPLICA:{self.region}", "DANGER: central_sync is None. Replay protection is running in LOCAL-ONLY mode. Cross-replica replays are possible!")
 
     def spend_nonce(self, nonce: str) -> None:
         """Saves locally and pushes upstream to central authority if connected."""
@@ -111,7 +121,7 @@ class RegionalReplicaRegistry(RegistryReader):
 
     def apply_snapshot(self, snap: RegistrySnapshot) -> bool:
         """
-        Applies a snapshot only if it's strictly newer and perfectly signed by Root.
+        Applies a snapshot. Accepts same version if strictly newer timestamp to sync nonces.
         """
         from kormic.logger import kormic_logger
         
@@ -120,13 +130,22 @@ class RegionalReplicaRegistry(RegistryReader):
             kormic_logger.error("SNAPSHOT_PULL", f"REPLICA:{self.region}", "Snapshot rejected: Invalid Root Signature (Forgery detected!)")
             return False
             
-        # 2. Check Version
-        if self.snapshot and snap.version <= self.snapshot.version:
-            kormic_logger.warning("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot rejected: Version {snap.version} is not newer than current {self.snapshot.version}")
-            return False
+        # 2. Check Version and Freshness
+        if self.snapshot:
+            if snap.version < self.snapshot.version:
+                kormic_logger.warning("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot rejected: Version {snap.version} is older than current {self.snapshot.version}")
+                return False
+            elif snap.version == self.snapshot.version:
+                if snap.issued_at <= self.snapshot.issued_at:
+                    return False
+                # Fast-path for non-version-bumping updates (nonces)
+                self.spent_nonces = set(snap.spent_nonces)
+                self.checkpoint_indices = snap.checkpoint_indices
+                self.snapshot = snap
+                self.last_sync = time.time()
+                return True
             
-        # 3. Apply Snapshot
-        old_version = self.snapshot.version if self.snapshot else 0
+        # 3. Apply Full Snapshot (Version Bumped)
         self.snapshot = snap
         self.last_sync = time.time()
         

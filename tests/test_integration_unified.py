@@ -26,8 +26,8 @@ class TestUnifiedSystemIntegration(unittest.TestCase):
         # 2. Phase 2: Registry & Replicas
         self.central_registry = CentralRegistryAuthority(self.key_custody)
         root_pub = self.key_custody.get_root_public_key()
-        self.replica_us = RegionalReplicaRegistry("us-east", root_pub)
-        self.replica_eu = RegionalReplicaRegistry("eu-west", root_pub)
+        self.replica_us = RegionalReplicaRegistry("us-east", root_pub, central_sync=self.central_registry)
+        self.replica_eu = RegionalReplicaRegistry("eu-west", root_pub, central_sync=self.central_registry)
         
         # 3. Phase 1 & 2: Managers and Verifiers
         self.agent_manager = AgentManager(self.key_custody, self.record_store)

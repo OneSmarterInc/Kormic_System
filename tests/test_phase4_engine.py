@@ -16,7 +16,7 @@ def phase4_system(tmp_path):
     store = SQLiteRecordStore(db_path)
     manager = AgentManager(keys, store, default_epoch=1)
     central = CentralRegistryAuthority(keys)
-    replica = RegionalReplicaRegistry("us-east", keys._root_pub)
+    replica = RegionalReplicaRegistry("us-east", keys._root_pub, central_sync=central)
     verifier = Verifier(replica)
     authority = LocalAuthority(manager, verifier, central, replica)
     

@@ -17,16 +17,22 @@ class SQLiteRecordStore(RecordStore):
     """
     def __init__(self, db_path: str = "kormic_agents.db"):
         self.db_path = db_path
+        self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Returns a connection context to SQLite database file."""
-        return sqlite3.connect(self.db_path)
+        """Returns a persistent connection context to SQLite database file."""
+        return self._conn
 
     def _init_db(self) -> None:
         """Initializes tables for storing agent pedigrees and encrypted recovery twins."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Optimization for sub-millisecond writes:
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA synchronous=NORMAL;")
+            
             # 1. Table for pedigrees (JSON format serialization text)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pedigrees (
@@ -46,13 +52,13 @@ class SQLiteRecordStore(RecordStore):
     def put(self, agent_code: str, pedigree: dict) -> None:
         """Stores or updates the serialized pedigree dictionary in the SQLite database."""
         pedigree_json = canonical_json(pedigree)
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT OR REPLACE INTO pedigrees (agent_code, pedigree_json) VALUES (?, ?)",
-                (agent_code, pedigree_json)
-            )
-            conn.commit()
+        # Direct execution without `with` context manager block per operation drops overhead
+        cursor = self._conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO pedigrees (agent_code, pedigree_json) VALUES (?, ?)",
+            (agent_code, pedigree_json)
+        )
+        self._conn.commit()
 
     def get(self, agent_code: str) -> Optional[dict]:
         """Retrieves and deserializes the pedigree from SQLite. Returns None if not found."""
