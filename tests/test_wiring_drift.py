@@ -27,7 +27,7 @@ class TestDriftWiring(unittest.TestCase):
         self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
         
         self.central = CentralRegistryAuthority(self.key_custody)
-        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub)
+        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub, local_only=True)
         
         self.verifier = Verifier(self.registry)
         

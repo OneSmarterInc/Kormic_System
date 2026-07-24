@@ -1,4 +1,6 @@
 import time
+import threading
+from collections import defaultdict
 from typing import Dict, Any, Optional
 from kormic.models.identity import Identity
 from kormic.models.pedigree import Pedigree
@@ -20,6 +22,16 @@ class AgentManager:
         self.key_custody = key_custody
         self.record_store = record_store
         self.default_epoch = default_epoch
+        # Per-agent locks serialize the read-modify-write in add_event so concurrent
+        # writers to the SAME agent can't lose events. Different agents proceed in
+        # parallel, so throughput doesn't collapse to a single global lock. The guard
+        # lock only protects creation of the per-agent locks themselves.
+        self._agent_locks: Dict[str, threading.Lock] = defaultdict(threading.Lock)
+        self._locks_guard = threading.Lock()
+
+    def _lock_for(self, agent_code: str) -> threading.Lock:
+        with self._locks_guard:
+            return self._agent_locks[agent_code]
 
     def register_new_agent(
         self,
@@ -77,27 +89,34 @@ class AgentManager:
         import time
         from kormic.pedigree.builder import append_history_event
         from kormic.crypto.twin import TwinManager
-        
-        # 1. Fetch live pedigree
-        ped_dict = self.record_store.get(agent_code)
-        if not ped_dict:
-            raise ValueError("Agent not found in live database.")
-            
-        pedigree = Pedigree.from_dict(ped_dict)
-        
-        # 2. Add Event
-        pedigree = append_history_event(pedigree, event_data, time.time())
-        seq = len(pedigree.history)
-        
-        # 3. Update live DB
-        self.record_store.put(agent_code, pedigree.to_dict())
-        
-        # 4. Snapshot Twin Logic (High-Churn optimization)
-        # We only encrypt and seal the full twin every K events to save bandwidth.
-        # This means on restore, we accept a bounded data loss of up to K-1 events.
-        if seq % snapshot_k == 0:
-            sealed_blob, new_shares = TwinManager.seal_twin(pedigree, self.key_custody)
-            self.record_store.put_twin(agent_code, sealed_blob)
-            return new_shares
-            
+
+        # The entire read-modify-write must be atomic per agent. Without this lock,
+        # concurrent callers each read the same head, append, and write back, and the
+        # last write wins — events vanish AND the surviving chain still verifies clean,
+        # which is the worst failure mode for a tamper-evident log. verify_full cannot
+        # detect a truncation that never entered the chain, so the guarantee has to be
+        # enforced here at write time.
+        with self._lock_for(agent_code):
+            # 1. Fetch live pedigree
+            ped_dict = self.record_store.get(agent_code)
+            if not ped_dict:
+                raise ValueError("Agent not found in live database.")
+
+            pedigree = Pedigree.from_dict(ped_dict)
+
+            # 2. Add Event
+            pedigree = append_history_event(pedigree, event_data, time.time())
+            seq = len(pedigree.history)
+
+            # 3. Update live DB
+            self.record_store.put(agent_code, pedigree.to_dict())
+
+            # 4. Snapshot Twin Logic (High-Churn optimization)
+            # We only encrypt and seal the full twin every K events to save bandwidth.
+            # This means on restore, we accept a bounded data loss of up to K-1 events.
+            if seq % snapshot_k == 0:
+                sealed_blob, new_shares = TwinManager.seal_twin(pedigree, self.key_custody)
+                self.record_store.put_twin(agent_code, sealed_blob)
+                return new_shares
+
         return None

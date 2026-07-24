@@ -24,7 +24,7 @@ class TestManifestSandbox(unittest.TestCase):
         self.store = SQLiteRecordStore(self.db_path)
         self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
         
-        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub)
+        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub, local_only=True)
         self.central = CentralRegistryAuthority(self.key_custody)
         snap = self.central.snapshot()
         self.registry.apply_snapshot(snap)

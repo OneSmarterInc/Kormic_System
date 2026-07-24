@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import threading
 from typing import Optional
 from kormic.interfaces.storage import RecordStore
 from kormic.utils.serialize import canonical_json
@@ -18,6 +19,11 @@ class SQLiteRecordStore(RecordStore):
     def __init__(self, db_path: str = "kormic_agents.db"):
         self.db_path = db_path
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        # One shared connection across threads (check_same_thread=False) is only safe if
+        # access is serialized. This lock guards every cursor/commit so concurrent callers
+        # can't interleave statements on the same connection (which produced the
+        # "cannot commit - no transaction is active" races).
+        self._conn_lock = threading.Lock()
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
@@ -52,40 +58,40 @@ class SQLiteRecordStore(RecordStore):
     def put(self, agent_code: str, pedigree: dict) -> None:
         """Stores or updates the serialized pedigree dictionary in the SQLite database."""
         pedigree_json = canonical_json(pedigree)
-        # Direct execution without `with` context manager block per operation drops overhead
-        cursor = self._conn.cursor()
-        cursor.execute(
-            "INSERT OR REPLACE INTO pedigrees (agent_code, pedigree_json) VALUES (?, ?)",
-            (agent_code, pedigree_json)
-        )
-        self._conn.commit()
+        with self._conn_lock:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO pedigrees (agent_code, pedigree_json) VALUES (?, ?)",
+                (agent_code, pedigree_json)
+            )
+            self._conn.commit()
 
     def get(self, agent_code: str) -> Optional[dict]:
         """Retrieves and deserializes the pedigree from SQLite. Returns None if not found."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        with self._conn_lock:
+            cursor = self._conn.cursor()
             cursor.execute("SELECT pedigree_json FROM pedigrees WHERE agent_code = ?", (agent_code,))
             row = cursor.fetchone()
-            if row:
-                return json.loads(row[0])
-            return None
+        if row:
+            return json.loads(row[0])
+        return None
 
     def put_twin(self, agent_code: str, sealed_blob: bytes) -> None:
         """Stores the encrypted/sealed recovery twin backup blob in SQLite."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        with self._conn_lock:
+            cursor = self._conn.cursor()
             cursor.execute(
                 "INSERT OR REPLACE INTO twins (agent_code, sealed_blob) VALUES (?, ?)",
                 (agent_code, sqlite3.Binary(sealed_blob))
             )
-            conn.commit()
+            self._conn.commit()
 
     def get_twin(self, agent_code: str) -> Optional[bytes]:
         """Retrieves the encrypted twin recovery blob. Returns None if not found."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
+        with self._conn_lock:
+            cursor = self._conn.cursor()
             cursor.execute("SELECT sealed_blob FROM twins WHERE agent_code = ?", (agent_code,))
             row = cursor.fetchone()
-            if row:
-                return bytes(row[0])
-            return None
+        if row:
+            return bytes(row[0])
+        return None

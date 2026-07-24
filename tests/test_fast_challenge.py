@@ -24,7 +24,7 @@ class TestFastChallenge(unittest.TestCase):
         
         from kormic.registry.distributed import RegionalReplicaRegistry
         # Replica mock for the verifier
-        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub)
+        self.registry = RegionalReplicaRegistry("test", self.key_custody._root_pub, local_only=True)
         
         # Central mock to generate a snapshot and push it to the replica
         self.central = CentralRegistryAuthority(self.key_custody)

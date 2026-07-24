@@ -63,6 +63,22 @@ class TestDistributedRegistry(unittest.TestCase):
         # 1. Central Authority Revokes the Agent
         self.central.revoke_agent(self.agent_code)
         
+        # 2. Before Replica Syncs, US-East still accepts (LAG)
+        res_lag = self.verifier_us.verify_fast(self.token)
+        self.assertNotEqual(res_lag.status, "REVOKED")
+        
+        # 3. Replica Syncs
+        snap = self.central.snapshot()
+        self.us_east.apply_snapshot(snap)
+        
+        # 4. Now it's revoked
+        res_sync = self.verifier_us.verify_fast(self.token)
+        self.assertEqual(res_sync.status, "REVOKED")
+        self.assertIn("explicitly revoked", res_sync.reason)
+
+        # 1. Central Authority Revokes the Agent
+        self.central.revoke_agent(self.agent_code)
+        
         # 2. Central Authority generates a new Signed Snapshot
         new_snap = self.central.snapshot()
         
@@ -85,6 +101,20 @@ class TestDistributedRegistry(unittest.TestCase):
         # 7. Verification in India-South now blocks the agent
         res_india_final = self.verifier_india.verify_fast(self.token)
         self.assertEqual(res_india_final.status, "REVOKED", "India-South should block the agent after syncing")
+
+    def test_default_construction_rejects_insecure_mode(self):
+        """
+        Prove that default construction (omitting central_sync) is hard-rejected
+        and requires explicit opt-in to bypass, preventing accidental cross-replica replay vulnerabilities.
+        """
+        import pytest
+        # 1. Omitting central_sync raises ValueError
+        with self.assertRaisesRegex(ValueError, "central_sync is required"):
+            RegionalReplicaRegistry("us-east", self.key_custody._root_pub)
+            
+        # 2. Explicitly opting in works but warns
+        replica = RegionalReplicaRegistry("us-east", self.key_custody._root_pub, local_only=True)
+        self.assertIsNone(replica.central_sync)
 
 if __name__ == '__main__':
     unittest.main()

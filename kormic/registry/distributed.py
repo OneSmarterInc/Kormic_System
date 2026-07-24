@@ -99,7 +99,7 @@ class RegionalReplicaRegistry(RegistryReader):
     Regional Replica. Verifiers read THIS locally. Pulls signed snapshots from
     the Central Authority. Uses a local Bloom Filter for O(1) revocation checks.
     """
-    def __init__(self, region: str, root_pub_key: bytes, central_sync=None):
+    def __init__(self, region: str, root_pub_key: bytes, central_sync=None, local_only: bool = False):
         self.region = region
         self.root_pub_key = root_pub_key
         self.central_sync = central_sync
@@ -109,7 +109,10 @@ class RegionalReplicaRegistry(RegistryReader):
         self.spent_nonces = set()
         self.checkpoint_indices = {}
         
-        if self.central_sync is None:
+        if self.central_sync is None and not local_only:
+            raise ValueError("central_sync is required for cross-replica replay protection. Pass local_only=True to explicitly opt-out for testing.")
+            
+        if local_only and self.central_sync is None:
             from kormic.logger import kormic_logger
             kormic_logger.warning("REPLICA_INIT", f"REPLICA:{self.region}", "DANGER: central_sync is None. Replay protection is running in LOCAL-ONLY mode. Cross-replica replays are possible!")
 
@@ -138,8 +141,14 @@ class RegionalReplicaRegistry(RegistryReader):
             elif snap.version == self.snapshot.version:
                 if snap.issued_at <= self.snapshot.issued_at:
                     return False
-                # Fast-path for non-version-bumping updates (nonces)
-                self.spent_nonces = set(snap.spent_nonces)
+                # Fast-path for non-version-bumping updates (nonces).
+                # UNION, never replace: because a spend no longer bumps the version,
+                # snapshot issued_at ordering doesn't track nonce causality, so a
+                # snapshot generated before a spend but delivered after it would wipe
+                # that spend and reopen the replay window. Union can't grow unbounded
+                # because central purges on the 300s freshness rule and the freshness
+                # gate rejects anything older than that before the spent-check runs.
+                self.spent_nonces |= set(snap.spent_nonces)
                 self.checkpoint_indices = snap.checkpoint_indices
                 self.snapshot = snap
                 self.last_sync = time.time()
