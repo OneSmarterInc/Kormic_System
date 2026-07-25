@@ -76,10 +76,7 @@ class TestDistributedRegistry(unittest.TestCase):
         self.assertEqual(res_sync.status, "REVOKED")
         self.assertIn("explicitly revoked", res_sync.reason)
 
-        # 1. Central Authority Revokes the Agent
-        self.central.revoke_agent(self.agent_code)
-        
-        # 2. Central Authority generates a new Signed Snapshot
+        # 5. Fan-out to a lagging region: India-South has not synced yet.
         new_snap = self.central.snapshot()
         
         # 3. Simulate Fan-Out: US-East gets it immediately. India-South experiences network lag.
@@ -107,7 +104,6 @@ class TestDistributedRegistry(unittest.TestCase):
         Prove that default construction (omitting central_sync) is hard-rejected
         and requires explicit opt-in to bypass, preventing accidental cross-replica replay vulnerabilities.
         """
-        import pytest
         # 1. Omitting central_sync raises ValueError
         with self.assertRaisesRegex(ValueError, "central_sync is required"):
             RegionalReplicaRegistry("us-east", self.key_custody._root_pub)

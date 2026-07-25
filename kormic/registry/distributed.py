@@ -7,6 +7,12 @@ from kormic.interfaces.registry import RegistryReader
 from kormic.crypto.algorithms import MLDSASigner
 from kormic.utils.bloom import ScalableRevocationFilter
 
+# How long a spent nonce must be remembered. It only needs to outlive the token
+# freshness window: verify_fast rejects any token older than this on skew BEFORE it
+# consults the spent set, so a nonce purged at this age can never be usefully replayed.
+# Central and every replica must agree on this number, hence one constant.
+NONCE_TTL_SECONDS = 300
+
 
 @dataclass
 class RegistrySnapshot:
@@ -46,7 +52,9 @@ class CentralRegistryAuthority:
 
     def _purge_old_nonces(self):
         now = time.time()
-        self.spent_nonces = {n: t for n, t in self.spent_nonces.items() if now - t <= 300}
+        self.spent_nonces = {
+            n: t for n, t in self.spent_nonces.items() if now - t <= NONCE_TTL_SECONDS
+        }
 
     def spend_nonce(self, nonce: str) -> None:
         self.spent_nonces[nonce] = time.time()
@@ -106,7 +114,11 @@ class RegionalReplicaRegistry(RegistryReader):
         self.snapshot: Optional[RegistrySnapshot] = None
         self.last_sync: float = 0.0
         self.revoked_filter = ScalableRevocationFilter()
-        self.spent_nonces = set()
+        # nonce -> time it was observed as spent. Mirrors CentralRegistryAuthority so the
+        # set can actually expire; a plain set could only ever grow, because merging from
+        # snapshots never removes anything. Membership tests (`nonce in spent_nonces`)
+        # behave identically on a dict, so the verifier is unaffected.
+        self.spent_nonces: Dict[str, float] = {}
         self.checkpoint_indices = {}
         
         if self.central_sync is None and not local_only:
@@ -116,9 +128,36 @@ class RegionalReplicaRegistry(RegistryReader):
             from kormic.logger import kormic_logger
             kormic_logger.warning("REPLICA_INIT", f"REPLICA:{self.region}", "DANGER: central_sync is None. Replay protection is running in LOCAL-ONLY mode. Cross-replica replays are possible!")
 
+    def _purge_old_nonces(self) -> None:
+        now = time.time()
+        self.spent_nonces = {
+            n: t for n, t in self.spent_nonces.items() if now - t <= NONCE_TTL_SECONDS
+        }
+
+    def _merge_spent_nonces(self, incoming: List[str], observed_at: float) -> None:
+        """
+        Merges snapshot nonces into the local set, never replacing it.
+
+        Replacement is the bug this exists to prevent: spends don't bump the snapshot
+        version, so snapshot ordering doesn't track nonce causality, and a snapshot cut
+        before a local spend but delivered after it would erase that spend and reopen the
+        replay window. Both apply_snapshot paths (same-version and version-bump) must go
+        through here for that reason.
+
+        Locally-recorded timestamps win over the snapshot's, because a local spend is the
+        exact moment; for nonces we learn about from a peer we use the snapshot's issue
+        time, which is never earlier than the real spend and so only ever errs toward
+        remembering slightly longer.
+        """
+        for nonce in incoming:
+            if nonce not in self.spent_nonces:
+                self.spent_nonces[nonce] = observed_at
+        self._purge_old_nonces()
+
     def spend_nonce(self, nonce: str) -> None:
         """Saves locally and pushes upstream to central authority if connected."""
-        self.spent_nonces.add(nonce)
+        self.spent_nonces[nonce] = time.time()
+        self._purge_old_nonces()
         if self.central_sync:
             self.central_sync.spend_nonce(nonce)
 
@@ -142,13 +181,7 @@ class RegionalReplicaRegistry(RegistryReader):
                 if snap.issued_at <= self.snapshot.issued_at:
                     return False
                 # Fast-path for non-version-bumping updates (nonces).
-                # UNION, never replace: because a spend no longer bumps the version,
-                # snapshot issued_at ordering doesn't track nonce causality, so a
-                # snapshot generated before a spend but delivered after it would wipe
-                # that spend and reopen the replay window. Union can't grow unbounded
-                # because central purges on the 300s freshness rule and the freshness
-                # gate rejects anything older than that before the spent-check runs.
-                self.spent_nonces |= set(snap.spent_nonces)
+                self._merge_spent_nonces(snap.spent_nonces, snap.issued_at)
                 self.checkpoint_indices = snap.checkpoint_indices
                 self.snapshot = snap
                 self.last_sync = time.time()
@@ -164,7 +197,10 @@ class RegionalReplicaRegistry(RegistryReader):
         for epoch in snap.revoked_epochs:
             self.revoked_filter.add(f"EPOCH:{epoch}")
             
-        self.spent_nonces = set(snap.spent_nonces)
+        # Merge, never replace — same reasoning as the same-version path above. A
+        # revocation bumps the version, so this branch is reachable with a snapshot that
+        # was cut before a local spend; replacing here would erase it.
+        self._merge_spent_nonces(snap.spent_nonces, snap.issued_at)
         self.checkpoint_indices = snap.checkpoint_indices
             
         kormic_logger.info("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot v{snap.version} received. Local Bloom Filter updated.")
