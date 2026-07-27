@@ -53,6 +53,13 @@ class SQLiteRecordStore(RecordStore):
                     sealed_blob BLOB NOT NULL
                 )
             """)
+            # 3. Table for localized salts
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS salts (
+                    agent_code TEXT PRIMARY KEY,
+                    salt TEXT NOT NULL
+                )
+            """)
             conn.commit()
 
     def put(self, agent_code: str, pedigree: dict) -> None:
@@ -94,4 +101,24 @@ class SQLiteRecordStore(RecordStore):
             row = cursor.fetchone()
         if row:
             return bytes(row[0])
+        return None
+
+    def put_salt(self, agent_code: str, salt: str) -> None:
+        """Stores a local deployment-specific salt in SQLite."""
+        with self._conn_lock:
+            cursor = self._conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO salts (agent_code, salt) VALUES (?, ?)",
+                (agent_code, salt)
+            )
+            self._conn.commit()
+
+    def get_salt(self, agent_code: str) -> Optional[str]:
+        """Retrieves a local deployment-specific salt. Returns None if not found."""
+        with self._conn_lock:
+            cursor = self._conn.cursor()
+            cursor.execute("SELECT salt FROM salts WHERE agent_code = ?", (agent_code,))
+            row = cursor.fetchone()
+        if row:
+            return row[0]
         return None

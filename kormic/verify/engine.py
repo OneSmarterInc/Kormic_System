@@ -14,67 +14,39 @@ class Verifier:
     Verification Engine implementing FAST and FULL pedigree checks.
     Satisfies Section 5.3, 5.4 & 7.
     """
-    def __init__(self, registry: RegistryReader, cache: Optional[TrustCache] = None):
+    def __init__(self, registry: RegistryReader, cache: Optional[TrustCache] = None, legacy_single_tier: bool = False):
         self._registry = registry
         self._cache = cache
+        self.legacy_single_tier = legacy_single_tier
         # Challenge nonce -> first_seen_ts (to prevent memory leak)
         # Note: In a distributed environment, this is currently per-replica scope.
         # Replays across replicas are bounded by the 5-minute freshness window.
         self._spent_challenges = {}
 
-    def generate_challenge(self) -> str:
-        """Issue a fresh, single-use nonce for challenge-response."""
-        return os.urandom(16).hex()
-
-    def verify_fast(self, token: ProofToken) -> VerificationResult:
-        """
-        FAST Verification (O(1)).
-        Validates birth signature and compares running head without walking the history.
-        Satisfies Section 3 & 5.3.
-        """
-        agent_code = token.agent_code
-        birth_data = token.birth_record
-        
-        # 1. Parse details
+    def _verify_single_birth(self, agent_code: str, birth_data: Dict[str, Any]) -> VerificationResult:
+        """Helper to authenticate a single birth record (DAIN or BAIN)."""
         epoch_n = birth_data.get("epoch_number")
         sig_hex = birth_data.get("signature", "")
         sig_bytes = bytes.fromhex(sig_hex) if sig_hex else b""
 
-        # 2. Check registry for epoch revocation status
+        # 1. Check registry for epoch revocation
         if self._registry.is_epoch_revoked(epoch_n):
-            return VerificationResult(
-                status="REVOKED",
-                reason=f"Epoch {epoch_n} has been revoked",
-                agent_code=agent_code,
-                epoch_number=epoch_n
-            )
+            return VerificationResult("REVOKED", f"Epoch {epoch_n} has been revoked", agent_code, epoch_n)
 
-        # 3. Check registry for agent-specific revocation
+        # 2. Check registry for explicit revocation
         if self._registry.is_agent_revoked(agent_code):
-            return VerificationResult(
-                status="REVOKED",
-                reason=f"Agent {agent_code} has been explicitly revoked",
-                agent_code=agent_code,
-                epoch_number=epoch_n
-            )
+            return VerificationResult("REVOKED", f"Identity {agent_code} has been explicitly revoked", agent_code, epoch_n)
 
-        # 4. Authenticate origin signature (incorporates cached trust bypass check)
+        # 3. Authenticate origin signature (incorporates cached trust bypass check)
         is_authentic = False
         if self._cache and self._cache.check(agent_code, sig_bytes):
             is_authentic = True
         else:
-            # Fetch epoch public key from registry
             pub_key = self._registry.get_epoch_public_key(epoch_n)
             if not pub_key:
-                # If replica is lagging or registry is missing certificate, escalate
-                return VerificationResult(
-                    status="ESCALATE",
-                    reason=f"Epoch certificate not found locally for epoch {epoch_n}",
-                    agent_code=agent_code,
-                    epoch_number=epoch_n
-                )
+                return VerificationResult("ESCALATE", f"Epoch certificate not found locally for epoch {epoch_n}", agent_code, epoch_n)
 
-            # Reconstruct birth payload used for signing
+            # Reconstruct payload
             payload_dict = {
                 "identity": birth_data.get("identity"),
                 "created_at": birth_data.get("created_at"),
@@ -83,21 +55,61 @@ class Verifier:
                 "sig_alg": birth_data.get("sig_alg"),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
+            if "derived_from" in birth_data:
+                payload_dict["derived_from"] = birth_data["derived_from"]
+
             serialized_payload = canonical_json(payload_dict)
-            
-            # Verify cryptographic signature
             is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
             
             if is_authentic and self._cache:
                 self._cache.put(agent_code, sig_bytes)
 
         if not is_authentic:
-            return VerificationResult(
-                status="HALT_HARD",
-                reason="Invalid birth signature. Cryptographic origin authentication failed.",
-                agent_code=agent_code,
-                epoch_number=epoch_n
-            )
+            return VerificationResult("HALT_HARD", "Invalid birth signature. Cryptographic origin authentication failed.", agent_code, epoch_n)
+
+        return VerificationResult("PASS", "Authentic", agent_code, epoch_n)
+
+    def generate_challenge(self) -> str:
+        """Issue a fresh, single-use nonce for challenge-response."""
+        return os.urandom(16).hex()
+
+    def verify_fast(self, token: ProofToken, mode: str = "deployment") -> VerificationResult:
+        """
+        FAST Verification (O(1)).
+        Validates birth signature and compares running head without walking the history.
+        Satisfies Section 3, 5.3, and Phase 5 Two-Tier Identity.
+        """
+        agent_code = token.agent_code
+        birth_data = token.birth_record
+        epoch_n = birth_data.get("epoch_number")
+        
+        # 1. Phase 5 Two-Tier Check
+        derived_from = birth_data.get("derived_from")
+        
+        # If it is a deployment, enforce BAIN checks
+        if agent_code.startswith("KMC.DPL.") or (agent_code.startswith("KMC.") and not agent_code.startswith("KMC.BLD.") and derived_from):
+            if not derived_from:
+                if not self.legacy_single_tier:
+                    return VerificationResult("HALT_HARD", "Deployment birth record missing 'derived_from' and legacy single-tier mode is off.", agent_code, epoch_n)
+            else:
+                if not token.parent_birth_record:
+                    return VerificationResult("HALT_HARD", "Parent BAIN record not provided in token.", agent_code, epoch_n)
+                
+                if token.parent_birth_record.get("identity") != derived_from:
+                    return VerificationResult("HALT_HARD", "DAIN derived_from does not match provided BAIN identity.", agent_code, epoch_n)
+                
+                # Check BAIN (Recall implicit fail happens here because _verify_single_birth checks revocation)
+                bain_res = self._verify_single_birth(derived_from, token.parent_birth_record)
+                if bain_res.status != "PASS":
+                    return bain_res
+        
+        # 2. Check the presented identity
+        primary_res = self._verify_single_birth(agent_code, birth_data)
+        if primary_res.status != "PASS":
+            return primary_res
+            
+        if mode == "build_only":
+            return VerificationResult("PASS", "Build identity verified successfully.", agent_code, epoch_n)
 
         # 5. [GAP 1 FIX] FAST MUST authenticate the head via proof-of-possession. FAIL CLOSED.
         agent_pub_key_hex = birth_data.get("agent_pub_key", "")
@@ -188,6 +200,9 @@ class Verifier:
             "sig_alg": birth_data.get("sig_alg"),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
+        if "derived_from" in birth_data:
+            payload_dict["derived_from"] = birth_data["derived_from"]
+            
         birth_hash = sha256_hex(canonical_json(payload_dict))
 
         # Check history length match with token expectation

@@ -20,3 +20,11 @@ class RecordStore(Protocol):
     def get_twin(self, agent_code: str) -> Optional[bytes]:
         """Retrieves the encrypted twin backup. Returns None if not found."""
         ...
+
+    def put_salt(self, agent_code: str, salt: str) -> None:
+        """Stores a deployment-specific salt associated with an agent_code."""
+        ...
+
+    def get_salt(self, agent_code: str) -> Optional[str]:
+        """Retrieves the salt for an agent_code. Returns None if not found."""
+        ...

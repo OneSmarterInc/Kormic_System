@@ -20,7 +20,16 @@ for demo in demos:
             capture_output=True,
             check=True
         )
-        print(f"OK {demo} passed")
+        
+        output = process.stdout.decode('utf-8', errors='replace')
+        # Check for expected success output
+        if "successfully" not in output.lower() and "blocked" not in output.lower() and "passed" not in output.lower():
+            print(f"FAIL {demo} - Exited 0 but missing success marker in stdout")
+            print("Output was:", output[:500])
+            all_passed = False
+        else:
+            print(f"OK {demo} passed")
+            
     except subprocess.CalledProcessError as e:
         print(f"FAIL {demo} failed with code {e.returncode}")
         print(e.stderr.decode('utf-8', errors='replace'))

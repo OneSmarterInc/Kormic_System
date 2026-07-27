@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from kormic.models.identity import Identity
 
 @dataclass(frozen=True)
@@ -11,6 +11,7 @@ class BirthRecord:
     sig_alg: str
     signature: bytes
     agent_pub_key: str = ""
+    derived_from: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the BirthRecord to a serializable dictionary matching Section 5.1 payload requirements."""
@@ -21,6 +22,7 @@ class BirthRecord:
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
             "agent_pub_key": self.agent_pub_key,
+            "derived_from": self.derived_from,
             "signature": self.signature.hex()
         }
 
@@ -33,6 +35,7 @@ class BirthRecord:
             epoch_number=data["epoch_number"],
             sig_alg=data["sig_alg"],
             agent_pub_key=data.get("agent_pub_key", ""),
+            derived_from=data.get("derived_from"),
             signature=bytes.fromhex(data["signature"])
         )
 
@@ -44,7 +47,8 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
-            "agent_pub_key": self.agent_pub_key
+            "agent_pub_key": self.agent_pub_key,
+            "derived_from": self.derived_from
         }
 
 @dataclass(frozen=True)

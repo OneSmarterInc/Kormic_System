@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from kormic.models.identity import Identity
 from kormic.models.pedigree import BirthRecord, HistoryLink, Pedigree
 from kormic.interfaces.keys import KeyCustody
@@ -13,7 +13,8 @@ def create_birth_record(
     sig_alg: str,
     key_custody: KeyCustody,
     agent_pub_key: str = "",
-    created_at: float = None
+    created_at: float = None,
+    derived_from: Optional[str] = None
 ) -> BirthRecord:
     """
     Creates and signs a sealed BirthRecord for the agent.
@@ -29,7 +30,8 @@ def create_birth_record(
         "guardrails": guardrails,
         "epoch_number": epoch_number,
         "sig_alg": sig_alg,
-        "agent_pub_key": agent_pub_key
+        "agent_pub_key": agent_pub_key,
+        "derived_from": derived_from
     }
 
     # Canonical serialization
@@ -45,7 +47,8 @@ def create_birth_record(
         epoch_number=epoch_number,
         sig_alg=sig_alg,
         agent_pub_key=agent_pub_key,
-        signature=signature
+        signature=signature,
+        derived_from=derived_from
     )
 
 def initialize_pedigree(birth_record: BirthRecord) -> Pedigree:
