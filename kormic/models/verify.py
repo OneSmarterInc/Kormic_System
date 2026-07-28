@@ -50,3 +50,4 @@ class VerificationResult:
     reason: str
     agent_code: str
     epoch_number: Optional[int] = None
+    verified_scope: str = "full"      # 'full' | 'build'

@@ -90,3 +90,40 @@ class TestTwoTierVerify:
         assert res.status == "REVOKED"
         # The agent_code inside the revocation failure belongs to the BAIN
         assert res.agent_code == self.bain_code
+
+    def test_bain_survives_null_stripped_json(self):
+        # FINDING A Fix test: A BAIN's birth record has derived_from: None, which gets serialized as null.
+        # If a JSON parser strips null keys, it should still verify.
+        bain_dict = self.bain_birth.to_dict()
+        bain_dict.pop("derived_from", None) # Strip it out
+        
+        # Present a token with this stripped birth record
+        token = ProofToken(
+            agent_code=self.bain_code,
+            birth_record=bain_dict,
+            current_head="head_hash",
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            parent_birth_record=None
+        )
+        # Should verify without throwing signature mismatch
+        res = self.verifier.verify_fast(token, mode="build_only")
+        assert res.status == "PASS"
+        
+    def test_build_only_mode_skips_head_check_and_returns_build_scope(self):
+        # FINDING B Fix test: forged head should pass build_only but verified_scope="build"
+        token = ProofToken(
+            agent_code=self.bain_code,
+            birth_record=self.bain_birth.to_dict(),
+            current_head="forged_head_that_is_wrong",
+            history_length=999,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            parent_birth_record=None,
+            challenge="",
+            signature=""
+        )
+        res = self.verifier.verify_fast(token, mode="build_only")
+        assert res.status == "PASS"
+        assert res.verified_scope == "build"

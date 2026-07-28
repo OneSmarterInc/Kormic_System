@@ -1,0 +1,59 @@
+import pytest
+import uuid
+import os
+from kormic.manager import AgentManager
+from kormic.crypto.software import SoftwareKeyCustody
+from kormic.storage.sqlite import SQLiteRecordStore
+
+class TestEnrollmentChain:
+    def setup_method(self):
+        self.key_custody = SoftwareKeyCustody()
+        self.key_custody.generate_epoch_key(1)
+        self.db_path = f"test_enrollment_{uuid.uuid4().hex}.db"
+        self.store = SQLiteRecordStore(self.db_path)
+        self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            try:
+                os.remove(self.db_path)
+            except PermissionError:
+                pass
+        for suffix in ["-wal", "-shm"]:
+            if os.path.exists(self.db_path + suffix):
+                try:
+                    os.remove(self.db_path + suffix)
+                except PermissionError:
+                    pass
+
+    def test_bain_dain_enrollment_chain(self):
+        # FINDING C Fix test: Enroll a BAIN, then pass its result directly to a DAIN enrollment.
+        
+        # 1. Enroll BAIN
+        bain_result = self.manager.register_new_agent(
+            agent_type="BLD",
+            entity_ref="vendorX",
+            instance_num="1.0.0",
+            real_world_id="Vendor X",
+            guardrails={"tools": ["A", "B"]}
+        )
+        
+        # Assert it has the named fields
+        assert bain_result.agent_code.startswith("KMC.BLD.")
+        assert len(bain_result.twin_shares) > 0
+        
+        # 2. Enroll DAIN using the result object directly (should not throw a tuple error)
+        dain_result = self.manager.register_new_agent(
+            agent_type="DPL",
+            entity_ref="hospital-b",
+            instance_num="0001",
+            real_world_id="Hospital B",
+            guardrails={"tools": ["A"]},
+            derived_from=bain_result  # Passing the tuple/result object directly
+        )
+        
+        assert dain_result.agent_code.startswith("KMC.DPL.")
+        
+        # Verify the parent reference was extracted correctly
+        dain_pedigree = self.store.get(dain_result.agent_code)
+        assert dain_pedigree["birth_record"]["derived_from"] == bain_result.agent_code

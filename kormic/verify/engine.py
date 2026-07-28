@@ -55,8 +55,11 @@ class Verifier:
                 "sig_alg": birth_data.get("sig_alg"),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
-            if "derived_from" in birth_data:
-                payload_dict["derived_from"] = birth_data["derived_from"]
+            is_legacy_shape = not (agent_code.startswith("KMC.BLD.") or agent_code.startswith("KMC.DPL."))
+            if is_legacy_shape and self.legacy_single_tier:
+                pass # Legacy births were signed without this key
+            else:
+                payload_dict["derived_from"] = birth_data.get("derived_from")
 
             serialized_payload = canonical_json(payload_dict)
             is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
@@ -109,7 +112,7 @@ class Verifier:
             return primary_res
             
         if mode == "build_only":
-            return VerificationResult("PASS", "Build identity verified successfully.", agent_code, epoch_n)
+            return VerificationResult("PASS", "Build identity verified successfully. Head and history skipped.", agent_code, epoch_n, verified_scope="build")
 
         # 5. [GAP 1 FIX] FAST MUST authenticate the head via proof-of-possession. FAIL CLOSED.
         agent_pub_key_hex = birth_data.get("agent_pub_key", "")
@@ -200,8 +203,11 @@ class Verifier:
             "sig_alg": birth_data.get("sig_alg"),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
-        if "derived_from" in birth_data:
-            payload_dict["derived_from"] = birth_data["derived_from"]
+        is_legacy_shape = not (agent_code.startswith("KMC.BLD.") or agent_code.startswith("KMC.DPL."))
+        if is_legacy_shape and self.legacy_single_tier:
+            pass # Legacy births were signed without this key
+        else:
+            payload_dict["derived_from"] = birth_data.get("derived_from")
             
         birth_hash = sha256_hex(canonical_json(payload_dict))
 
