@@ -98,6 +98,25 @@ This phase productizes the mathematical models into a usable, high-performance P
 
 ---
 
+## Phase 5 Features (Two-Tier Identity & Containment)
+This phase solves the commercial "multi-tenant" problem, ensuring that a software vendor's build identity and a hospital's deployment identity are strictly separated, without creating a single point of failure.
+
+### 15. The BAIN & DAIN Split
+- **Build AIN (BAIN):** Issued to the software vendor for an immutable software release. It seals the *capability envelope* (the maximum allowed permissions).
+- **Deployment AIN (DAIN):** Issued to the customer for a specific running instance. It seals the *operating manifest*, owner, and storage locus. It cryptographically links back to the BAIN.
+
+### 16. Containment Envelopes
+- **Mathematical Ceiling:** During DAIN enrollment, the requested operating manifest is strictly verified to be a subset of the parent BAIN's capability envelope. A customer cannot grant more power than the vendor allowed, and a vendor cannot silently expand a running deployment's permissions.
+
+### 17. The Revocation Kill Switch
+- **Two-Tier FAST Verification:** The `Verifier` Engine simultaneously authenticates both the DAIN signature and the parent BAIN signature.
+- **Cascading Revocation:** If a vendor discovers a zero-day vulnerability in their software and revokes the `BAIN`, every single `DAIN` derived from that build is instantly and mathematically rejected by the system worldwide.
+
+### 18. Cryptographic Storage Isolation
+- **Per-Deployment Salt:** To ensure cross-deployment privacy, each DAIN is issued a unique cryptographic salt that is stored *only* in the local SQLite database. It is never transmitted to the global registry, ensuring that event hashes cannot be correlated by observers or the vendor.
+
+---
+
 ## Getting Started & Demos
 
 You can run the full, interactive system demonstration for Phase 1, 2, 2.5, and 3 by running:
