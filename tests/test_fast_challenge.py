@@ -160,5 +160,31 @@ class TestFastChallenge(unittest.TestCase):
         self.assertFalse(res["granted"])
         self.assertIn("no challenge/signature", res["reason"])
 
+    def test_cmp_verifies_with_legacy_flag_on(self):
+        # FINDING A-RESIDUAL Fix test: Turn on legacy flag and verify newly created CMP passes
+        import time
+        ped_dict = self.store.get(self.ain)
+        ped = Pedigree.from_dict(ped_dict)
+        
+        challenge = self.verifier.generate_challenge()
+        payload = (ped.running_head + challenge).encode('utf-8')
+        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        
+        token = ProofToken(
+            agent_code=self.ain,
+            birth_record=ped.birth_record.to_dict(),
+            current_head=ped.running_head,
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            challenge=challenge,
+            signature=signature
+        )
+        
+        # Turn the flag on explicitly
+        self.verifier.legacy_single_tier = True
+        res = self.verifier.verify_fast(token)
+        self.assertEqual(res.status, "PASS")
+
 if __name__ == '__main__':
     unittest.main()

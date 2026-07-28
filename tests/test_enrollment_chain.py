@@ -30,12 +30,19 @@ class TestEnrollmentChain:
         # FINDING C Fix test: Enroll a BAIN, then pass its result directly to a DAIN enrollment.
         
         # 1. Enroll BAIN
+        from kormic.crypto.algorithms import MLDSASigner
+        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        vendor_pub_hex = vendor_pub.hex()
+        artifact_sig = MLDSASigner.sign(vendor_priv, b"vendorX1.0.0").hex()
+        
         bain_result = self.manager.register_new_agent(
             agent_type="BLD",
             entity_ref="vendorX",
             instance_num="1.0.0",
             real_world_id="Vendor X",
-            guardrails={"tools": ["A", "B"]}
+            guardrails={"tools": ["A", "B"]},
+            artifact_signature=artifact_sig,
+            vendor_pub_key=vendor_pub_hex
         )
         
         # Assert it has the named fields

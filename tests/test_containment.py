@@ -13,6 +13,11 @@ class TestContainment:
         self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
 
         # Create a BAIN (Vendor Build)
+        from kormic.crypto.algorithms import MLDSASigner
+        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        vendor_pub_hex = vendor_pub.hex()
+        artifact_sig = MLDSASigner.sign(vendor_priv, b"acme2.1.0").hex()
+
         self.vendor_guardrails = {
             "allowed_tools": ["toolA", "toolB", "toolC"],
             "allowed_endpoints": ["api.example.com", "api.acme.com"],
@@ -24,7 +29,9 @@ class TestContainment:
             entity_ref="acme",
             instance_num="2.1.0",
             real_world_id="Acme Corp",
-            guardrails=self.vendor_guardrails
+            guardrails=self.vendor_guardrails,
+            artifact_signature=artifact_sig,
+            vendor_pub_key=vendor_pub_hex
         )
 
     def teardown_method(self):

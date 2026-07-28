@@ -55,8 +55,7 @@ class Verifier:
                 "sig_alg": birth_data.get("sig_alg"),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
-            is_legacy_shape = not (agent_code.startswith("KMC.BLD.") or agent_code.startswith("KMC.DPL."))
-            if is_legacy_shape and self.legacy_single_tier:
+            if self.legacy_single_tier and "derived_from" not in birth_data:
                 pass # Legacy births were signed without this key
             else:
                 payload_dict["derived_from"] = birth_data.get("derived_from")
@@ -203,8 +202,7 @@ class Verifier:
             "sig_alg": birth_data.get("sig_alg"),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
-        is_legacy_shape = not (agent_code.startswith("KMC.BLD.") or agent_code.startswith("KMC.DPL."))
-        if is_legacy_shape and self.legacy_single_tier:
+        if self.legacy_single_tier and "derived_from" not in birth_data:
             pass # Legacy births were signed without this key
         else:
             payload_dict["derived_from"] = birth_data.get("derived_from")
