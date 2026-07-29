@@ -20,12 +20,19 @@ class TestTwoTierVerify:
         from kormic.pedigree.builder import create_birth_record
         
         bain_identity = Identity("BLD", "acme", "2.1.0", "a" * 64)
+        from kormic.crypto.algorithms import MLDSASigner
+        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_pub_hex = vendor_pub.hex()
+        self.artifact_digest = "sha256_two_tier"
+
         self.bain_birth = create_birth_record(
             identity=bain_identity,
             guardrails={"tool": ["A", "B"]},
             epoch_number=1,
             sig_alg="ML-DSA-44",
-            key_custody=self.key_custody
+            key_custody=self.key_custody,
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=self.artifact_digest
         )
         self.bain_code = bain_identity.to_string()
         

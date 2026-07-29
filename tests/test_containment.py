@@ -8,15 +8,22 @@ class TestContainment:
     def setup_method(self):
         self.key_custody = SoftwareKeyCustody()
         self.key_custody.generate_epoch_key(1)
+        from kormic.crypto.algorithms import MLDSASigner
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_pub_hex = self.vendor_pub.hex()
+        
         self.db_path = f"test_containment_{uuid.uuid4().hex}.db"
         self.store = SQLiteRecordStore(self.db_path)
-        self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
+        self.manager = AgentManager(
+            self.key_custody, 
+            self.store, 
+            default_epoch=1,
+            enrolled_vendors={"acme": self.vendor_pub_hex}
+        )
 
         # Create a BAIN (Vendor Build)
-        from kormic.crypto.algorithms import MLDSASigner
-        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
-        vendor_pub_hex = vendor_pub.hex()
-        artifact_sig = MLDSASigner.sign(vendor_priv, b"acme2.1.0").hex()
+        artifact_digest = "sha256_deadbeef1234"
+        artifact_sig = MLDSASigner.sign(self.vendor_priv, b"acme2.1.0" + artifact_digest.encode('utf-8')).hex()
 
         self.vendor_guardrails = {
             "allowed_tools": ["toolA", "toolB", "toolC"],
@@ -31,7 +38,8 @@ class TestContainment:
             real_world_id="Acme Corp",
             guardrails=self.vendor_guardrails,
             artifact_signature=artifact_sig,
-            vendor_pub_key=vendor_pub_hex
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=artifact_digest
         )
 
     def teardown_method(self):

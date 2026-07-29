@@ -14,7 +14,9 @@ def create_birth_record(
     key_custody: KeyCustody,
     agent_pub_key: str = "",
     created_at: float = None,
-    derived_from: Optional[str] = None
+    derived_from: Optional[str] = None,
+    vendor_pub_key: Optional[str] = None,
+    artifact_digest: Optional[str] = None
 ) -> BirthRecord:
     """
     Creates and signs a sealed BirthRecord for the agent.
@@ -31,7 +33,9 @@ def create_birth_record(
         "epoch_number": epoch_number,
         "sig_alg": sig_alg,
         "agent_pub_key": agent_pub_key,
-        "derived_from": derived_from
+        "derived_from": derived_from,
+        "vendor_pub_key": vendor_pub_key,
+        "artifact_digest": artifact_digest
     }
 
     # Canonical serialization
@@ -48,7 +52,9 @@ def create_birth_record(
         sig_alg=sig_alg,
         agent_pub_key=agent_pub_key,
         signature=signature,
-        derived_from=derived_from
+        derived_from=derived_from,
+        vendor_pub_key=vendor_pub_key,
+        artifact_digest=artifact_digest
     )
 
 def initialize_pedigree(birth_record: BirthRecord) -> Pedigree:

@@ -9,9 +9,18 @@ class TestEnrollmentChain:
     def setup_method(self):
         self.key_custody = SoftwareKeyCustody()
         self.key_custody.generate_epoch_key(1)
+        from kormic.crypto.algorithms import MLDSASigner
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_pub_hex = self.vendor_pub.hex()
+        
         self.db_path = f"test_enrollment_{uuid.uuid4().hex}.db"
         self.store = SQLiteRecordStore(self.db_path)
-        self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
+        self.manager = AgentManager(
+            self.key_custody, 
+            self.store, 
+            default_epoch=1,
+            enrolled_vendors={"vendorX": self.vendor_pub_hex}
+        )
 
     def teardown_method(self):
         if os.path.exists(self.db_path):
@@ -28,12 +37,10 @@ class TestEnrollmentChain:
 
     def test_bain_dain_enrollment_chain(self):
         # FINDING C Fix test: Enroll a BAIN, then pass its result directly to a DAIN enrollment.
-        
-        # 1. Enroll BAIN
         from kormic.crypto.algorithms import MLDSASigner
-        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
-        vendor_pub_hex = vendor_pub.hex()
-        artifact_sig = MLDSASigner.sign(vendor_priv, b"vendorX1.0.0").hex()
+        # 1. Enroll BAIN
+        artifact_digest = "sha256_abcdef123"
+        artifact_sig = MLDSASigner.sign(self.vendor_priv, b"vendorX1.0.0" + artifact_digest.encode('utf-8')).hex()
         
         bain_result = self.manager.register_new_agent(
             agent_type="BLD",
@@ -42,7 +49,8 @@ class TestEnrollmentChain:
             real_world_id="Vendor X",
             guardrails={"tools": ["A", "B"]},
             artifact_signature=artifact_sig,
-            vendor_pub_key=vendor_pub_hex
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=artifact_digest
         )
         
         # Assert it has the named fields

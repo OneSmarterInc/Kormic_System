@@ -9,9 +9,18 @@ class TestStorageIsolation:
     def setup_method(self):
         self.key_custody = SoftwareKeyCustody()
         self.key_custody.generate_epoch_key(1)
+        from kormic.crypto.algorithms import MLDSASigner
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_pub_hex = self.vendor_pub.hex()
+        
         self.db_path = f"test_salt_{uuid.uuid4().hex}.db"
         self.store = SQLiteRecordStore(self.db_path)
-        self.manager = AgentManager(self.key_custody, self.store, default_epoch=1)
+        self.manager = AgentManager(
+            self.key_custody, 
+            self.store, 
+            default_epoch=1,
+            enrolled_vendors={"vendor-multi": self.vendor_pub_hex, "vendor-squat": "true_vendor_pub_key_123"}
+        )
 
     def teardown_method(self):
         if os.path.exists(self.db_path):
@@ -78,18 +87,18 @@ class TestStorageIsolation:
 
     def test_two_dains_share_no_salt(self):
         # FINDING: Two DAINs from the same BAIN definitively share absolutely no salt or storage locus
-        
-        # 1. Enroll BAIN
         from kormic.crypto.algorithms import MLDSASigner
-        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        # 1. Enroll BAIN
+        artifact_digest = "sha256_bain_multi"
         bain_code, _ = self.manager.register_new_agent(
             agent_type="BLD",
             entity_ref="vendor-multi",
             instance_num="1.0.0",
             real_world_id="Vendor Multi",
             guardrails={},
-            artifact_signature=MLDSASigner.sign(vendor_priv, b"vendor-multi1.0.0").hex(),
-            vendor_pub_key=vendor_pub.hex()
+            artifact_signature=MLDSASigner.sign(self.vendor_priv, b"vendor-multi1.0.0" + artifact_digest.encode('utf-8')).hex(),
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=artifact_digest
         )
         
         # 2. Enroll DAIN 1
@@ -126,10 +135,11 @@ class TestStorageIsolation:
     def test_bain_squatting_controls_reject_invalid_signature(self):
         # FINDING: Enforce Artifact Binding to prevent BAIN Squatting
         from kormic.crypto.algorithms import MLDSASigner
-        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        attacker_priv, attacker_pub = MLDSASigner.generate_keypair()
         
-        # Sign the wrong payload (e.g. wrong instance_num)
-        invalid_sig = MLDSASigner.sign(vendor_priv, b"wrong_payload").hex()
+        artifact_digest = "sha256_squat"
+        # Attacker correctly signs the payload using their own key (The squat)
+        squat_sig = MLDSASigner.sign(attacker_priv, b"vendor-squat1.0.0" + artifact_digest.encode('utf-8')).hex()
         
         with pytest.raises(ValueError) as exc:
             self.manager.register_new_agent(
@@ -138,7 +148,8 @@ class TestStorageIsolation:
                 instance_num="1.0.0",
                 real_world_id="Vendor Squat",
                 guardrails={},
-                artifact_signature=invalid_sig,
-                vendor_pub_key=vendor_pub.hex()
+                artifact_signature=squat_sig,
+                vendor_pub_key=attacker_pub.hex(),
+                artifact_digest=artifact_digest
             )
-        assert "Artifact signature verification failed" in str(exc.value)
+        assert "Key does not match enrolled vendor" in str(exc.value)

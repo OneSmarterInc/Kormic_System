@@ -59,6 +59,8 @@ class Verifier:
                 pass # Legacy births were signed without this key
             else:
                 payload_dict["derived_from"] = birth_data.get("derived_from")
+                payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
+                payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
 
             serialized_payload = canonical_json(payload_dict)
             is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
@@ -206,6 +208,8 @@ class Verifier:
             pass # Legacy births were signed without this key
         else:
             payload_dict["derived_from"] = birth_data.get("derived_from")
+            payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
+            payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
             
         birth_hash = sha256_hex(canonical_json(payload_dict))
 
