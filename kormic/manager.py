@@ -22,11 +22,10 @@ class AgentManager:
     """
     High-level manager to simplify agent creation, tracking, and persistence.
     """
-    def __init__(self, key_custody: KeyCustody, record_store: RecordStore, default_epoch: int = 1, enrolled_vendors: Dict[str, str] = None):
+    def __init__(self, key_custody: KeyCustody, record_store: RecordStore, default_epoch: int = 1):
         self.key_custody = key_custody
         self.record_store = record_store
         self.default_epoch = default_epoch
-        self.enrolled_vendors = enrolled_vendors or {}
         # Per-agent locks serialize the read-modify-write in add_event so concurrent
         # writers to the SAME agent can't lose events. Different agents proceed in
         # parallel, so throughput doesn't collapse to a single global lock. The guard
@@ -86,7 +85,9 @@ class AgentManager:
         if agent_type == "BLD":
             if not artifact_signature or not vendor_pub_key or not artifact_digest:
                 raise ValueError("BAIN registration requires artifact binding (vendor_pub_key, artifact_signature, and artifact_digest).")
-            if self.enrolled_vendors.get(entity_ref) != vendor_pub_key:
+            
+            enrolled_key = self.record_store.get_enrolled_vendor(entity_ref)
+            if enrolled_key != vendor_pub_key:
                 raise ValueError("Vendor Squatting Attempt: Key does not match enrolled vendor or vendor not enrolled.")
             
             from kormic.crypto.algorithms import MLDSASigner

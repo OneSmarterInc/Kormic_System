@@ -28,3 +28,11 @@ class RecordStore(Protocol):
     def get_salt(self, agent_code: str) -> Optional[str]:
         """Retrieves the salt for an agent_code. Returns None if not found."""
         ...
+
+    def enroll_vendor(self, entity_ref: str, public_key: str) -> None:
+        """Enrolls a vendor's public key in the registry."""
+        ...
+
+    def get_enrolled_vendor(self, entity_ref: str) -> Optional[str]:
+        """Retrieves a vendor's enrolled public key. Returns None if not found."""
+        ...

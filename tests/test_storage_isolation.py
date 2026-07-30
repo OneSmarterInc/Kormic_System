@@ -18,9 +18,10 @@ class TestStorageIsolation:
         self.manager = AgentManager(
             self.key_custody, 
             self.store, 
-            default_epoch=1,
-            enrolled_vendors={"vendor-multi": self.vendor_pub_hex, "vendor-squat": "true_vendor_pub_key_123"}
+            default_epoch=1
         )
+        self.store.enroll_vendor("vendor-multi", self.vendor_pub_hex)
+        self.store.enroll_vendor("vendor-squat", "true_vendor_pub_key_123")
 
     def teardown_method(self):
         if os.path.exists(self.db_path):

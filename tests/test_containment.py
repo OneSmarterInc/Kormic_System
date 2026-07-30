@@ -17,9 +17,9 @@ class TestContainment:
         self.manager = AgentManager(
             self.key_custody, 
             self.store, 
-            default_epoch=1,
-            enrolled_vendors={"acme": self.vendor_pub_hex}
+            default_epoch=1
         )
+        self.store.enroll_vendor("acme", self.vendor_pub_hex)
 
         # Create a BAIN (Vendor Build)
         artifact_digest = "sha256_deadbeef1234"

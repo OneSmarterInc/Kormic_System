@@ -18,9 +18,9 @@ class TestEnrollmentChain:
         self.manager = AgentManager(
             self.key_custody, 
             self.store, 
-            default_epoch=1,
-            enrolled_vendors={"vendorX": self.vendor_pub_hex}
+            default_epoch=1
         )
+        self.store.enroll_vendor("vendorX", self.vendor_pub_hex)
 
     def teardown_method(self):
         if os.path.exists(self.db_path):
