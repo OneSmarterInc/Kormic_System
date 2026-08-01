@@ -22,10 +22,11 @@ class AgentManager:
     """
     High-level manager to simplify agent creation, tracking, and persistence.
     """
-    def __init__(self, key_custody: KeyCustody, record_store: RecordStore, default_epoch: int = 1):
+    def __init__(self, key_custody: KeyCustody, record_store: RecordStore, default_epoch: int = 1, registry_reader=None):
         self.key_custody = key_custody
         self.record_store = record_store
         self.default_epoch = default_epoch
+        self.registry_reader = registry_reader
         # Per-agent locks serialize the read-modify-write in add_event so concurrent
         # writers to the SAME agent can't lose events. Different agents proceed in
         # parallel, so throughput doesn't collapse to a single global lock. The guard
@@ -86,7 +87,9 @@ class AgentManager:
             if not artifact_signature or not vendor_pub_key or not artifact_digest:
                 raise ValueError("BAIN registration requires artifact binding (vendor_pub_key, artifact_signature, and artifact_digest).")
             
-            enrolled_key = self.record_store.get_enrolled_vendor(entity_ref)
+            if not self.registry_reader:
+                raise ValueError("BAIN registration requires a RegistryReader to verify vendor enrollment.")
+            enrolled_key = self.registry_reader.get_enrolled_vendor(entity_ref)
             if enrolled_key != vendor_pub_key:
                 raise ValueError("Vendor Squatting Attempt: Key does not match enrolled vendor or vendor not enrolled.")
             

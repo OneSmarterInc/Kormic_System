@@ -14,12 +14,20 @@ class TestContainment:
         
         self.db_path = f"test_containment_{uuid.uuid4().hex}.db"
         self.store = SQLiteRecordStore(self.db_path)
+        from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
+        self.central = CentralRegistryAuthority(self.key_custody)
+        challenge_nonce = "test-nonce-1"
+        possession_sig = MLDSASigner.sign(self.vendor_priv, challenge_nonce.encode('utf-8')).hex()
+        self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
+        self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
+        self.replica.apply_snapshot(self.central.snapshot())
+
         self.manager = AgentManager(
             self.key_custody, 
             self.store, 
-            default_epoch=1
+            default_epoch=1,
+            registry_reader=self.replica
         )
-        self.store.enroll_vendor("acme", self.vendor_pub_hex)
 
         # Create a BAIN (Vendor Build)
         artifact_digest = "sha256_deadbeef1234"

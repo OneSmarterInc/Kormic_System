@@ -2,6 +2,7 @@ import json
 import time
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
+from enum import Enum
 
 from kormic.interfaces.registry import RegistryReader
 from kormic.crypto.algorithms import MLDSASigner
@@ -14,6 +15,23 @@ from kormic.utils.bloom import ScalableRevocationFilter
 NONCE_TTL_SECONDS = 300
 
 
+class VendorStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    REVOKED = "REVOKED"
+    ROTATED = "ROTATED"
+
+@dataclass
+class VendorEnrollment:
+    entity_ref: str
+    public_key: str
+    status: str
+    enrolled_at: float
+    enrolled_by: str
+    identity_proof_ref: str
+    alg: str
+    fmt_ver: int
+    version: int
+
 @dataclass
 class RegistrySnapshot:
     """A signed snapshot of the registry state. Distributed to Regional Replicas."""
@@ -24,6 +42,7 @@ class RegistrySnapshot:
     revoked_agents: List[str]
     spent_nonces: List[str]
     checkpoint_indices: Dict[str, int]
+    vendors: Dict[str, dict]  # entity_ref -> VendorEnrollment dict
     root_sig_hex: str = ""
 
     def payload(self) -> bytes:
@@ -34,7 +53,8 @@ class RegistrySnapshot:
             "revoked_epochs": sorted(self.revoked_epochs),
             "revoked_agents": sorted(self.revoked_agents),
             "spent_nonces": sorted(self.spent_nonces),
-            "checkpoint_indices": self.checkpoint_indices
+            "checkpoint_indices": self.checkpoint_indices,
+            "vendors": self.vendors
         }, sort_keys=True).encode('utf-8')
 
 
@@ -49,6 +69,7 @@ class CentralRegistryAuthority:
         self.revoked_agents = set()
         self.spent_nonces: Dict[str, float] = {}
         self.checkpoint_indices = {}
+        self.vendors: Dict[str, VendorEnrollment] = {}
 
     def _purge_old_nonces(self):
         now = time.time()
@@ -74,6 +95,45 @@ class CentralRegistryAuthority:
         self.key_custody.revoke_epoch(epoch_n)
         self.version += 1
 
+    def enroll_vendor(self, entity_ref: str, public_key: str, possession_proof: str, identity_proof_ref: str, challenge_nonce: str) -> None:
+        if not identity_proof_ref:
+            raise ValueError("identity_proof_ref is required.")
+        if entity_ref in self.vendors:
+            raise ValueError(f"Vendor '{entity_ref}' has already been bound.")
+            
+        try:
+            sig_bytes = bytes.fromhex(possession_proof)
+            pub_bytes = bytes.fromhex(public_key)
+            if not MLDSASigner.verify(pub_bytes, challenge_nonce.encode('utf-8'), sig_bytes):
+                raise ValueError("Proof of possession failed.")
+        except Exception as e:
+            raise ValueError(f"Invalid proof of possession: {str(e)}")
+
+        # Mark the challenge nonce as spent so it can't be reused for possession proofs
+        self.spend_nonce(challenge_nonce)
+
+        self.version += 1
+        self.vendors[entity_ref] = VendorEnrollment(
+            entity_ref=entity_ref,
+            public_key=public_key,
+            status=VendorStatus.ACTIVE,
+            enrolled_at=time.time(),
+            enrolled_by="central_authority",
+            identity_proof_ref=identity_proof_ref,
+            alg="ML-DSA-44",
+            fmt_ver=1,
+            version=self.version
+        )
+
+    def revoke_vendor(self, entity_ref: str) -> None:
+        if entity_ref not in self.vendors:
+            raise ValueError(f"Vendor '{entity_ref}' not found.")
+        self.vendors[entity_ref].status = VendorStatus.REVOKED
+        self.version += 1
+
+    def rotate_vendor_key(self, *args, **kwargs):
+        raise NotImplementedError("rotate_vendor_key is stubbed out for this round.")
+
     def snapshot(self) -> RegistrySnapshot:
         self._purge_old_nonces()
         # Collect all active and revoked epochs from key custody
@@ -90,7 +150,8 @@ class CentralRegistryAuthority:
             revoked_epochs=revoked_epochs,
             revoked_agents=list(self.revoked_agents),
             spent_nonces=list(self.spent_nonces.keys()),
-            checkpoint_indices=self.checkpoint_indices.copy()
+            checkpoint_indices=self.checkpoint_indices.copy(),
+            vendors={k: asdict(v) for k, v in self.vendors.items()}
         )
         # Sign the payload using the root private key
         root_priv = self.key_custody._root_priv
@@ -230,4 +291,12 @@ class RegionalReplicaRegistry(RegistryReader):
     def get_epoch_certificate(self, epoch_n: int) -> Optional[bytes]:
         # Snapshots don't carry the certificates in this minimal model, they just carry the trusted public keys
         # The snapshot signature itself acts as the certificate of trust for the whole set of keys.
+        return None
+
+    def get_enrolled_vendor(self, entity_ref: str) -> Optional[str]:
+        if not self.snapshot:
+            return None
+        vendor_dict = self.snapshot.vendors.get(entity_ref)
+        if vendor_dict and vendor_dict.get('status') == VendorStatus.ACTIVE:
+            return vendor_dict.get('public_key')
         return None

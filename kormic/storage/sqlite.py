@@ -60,13 +60,6 @@ class SQLiteRecordStore(RecordStore):
                     salt TEXT NOT NULL
                 )
             """)
-            # 4. Table for enrolled vendors
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS vendors (
-                    entity_ref TEXT PRIMARY KEY,
-                    public_key TEXT NOT NULL
-                )
-            """)
             conn.commit()
 
     def put(self, agent_code: str, pedigree: dict) -> None:
@@ -125,26 +118,6 @@ class SQLiteRecordStore(RecordStore):
         with self._conn_lock:
             cursor = self._conn.cursor()
             cursor.execute("SELECT salt FROM salts WHERE agent_code = ?", (agent_code,))
-            row = cursor.fetchone()
-        if row:
-            return row[0]
-        return None
-
-    def enroll_vendor(self, entity_ref: str, public_key: str) -> None:
-        """Enrolls a vendor's public key in the registry."""
-        with self._conn_lock:
-            cursor = self._conn.cursor()
-            cursor.execute(
-                "INSERT OR REPLACE INTO vendors (entity_ref, public_key) VALUES (?, ?)",
-                (entity_ref, public_key)
-            )
-            self._conn.commit()
-
-    def get_enrolled_vendor(self, entity_ref: str) -> Optional[str]:
-        """Retrieves a vendor's enrolled public key. Returns None if not found."""
-        with self._conn_lock:
-            cursor = self._conn.cursor()
-            cursor.execute("SELECT public_key FROM vendors WHERE entity_ref = ?", (entity_ref,))
             row = cursor.fetchone()
         if row:
             return row[0]

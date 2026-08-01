@@ -13,15 +13,30 @@ class TestStorageIsolation:
         self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
         self.vendor_pub_hex = self.vendor_pub.hex()
         
-        self.db_path = f"test_salt_{uuid.uuid4().hex}.db"
+        self.db_path = f"test_storage_{uuid.uuid4().hex}.db"
         self.store = SQLiteRecordStore(self.db_path)
+        from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
+        self.central = CentralRegistryAuthority(self.key_custody)
+        challenge_nonce = "test-nonce-1"
+        possession_sig = MLDSASigner.sign(self.vendor_priv, challenge_nonce.encode('utf-8')).hex()
+        self.central.enroll_vendor("vendor-multi", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
+        
+        challenge_nonce2 = "test-nonce-2"
+        # We need a key pair for true_vendor_pub_key_123, but we only have a hex string in the test.
+        # Let's generate a proper key pair.
+        priv2, pub2 = MLDSASigner.generate_keypair()
+        possession_sig2 = MLDSASigner.sign(priv2, challenge_nonce2.encode('utf-8')).hex()
+        self.central.enroll_vendor("vendor-squat", pub2.hex(), possession_sig2, "proof2", challenge_nonce2)
+        
+        self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
+        self.replica.apply_snapshot(self.central.snapshot())
+
         self.manager = AgentManager(
             self.key_custody, 
             self.store, 
-            default_epoch=1
+            default_epoch=1,
+            registry_reader=self.replica
         )
-        self.store.enroll_vendor("vendor-multi", self.vendor_pub_hex)
-        self.store.enroll_vendor("vendor-squat", "true_vendor_pub_key_123")
 
     def teardown_method(self):
         if os.path.exists(self.db_path):

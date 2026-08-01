@@ -115,6 +115,11 @@ This phase solves the commercial "multi-tenant" problem, ensuring that a softwar
 ### 18. Cryptographic Storage Isolation
 - **Per-Deployment Salt:** To ensure cross-deployment privacy, each DAIN is issued a unique cryptographic salt that is stored *only* in the local SQLite database. It is never transmitted to the global registry, ensuring that event hashes cannot be correlated by observers or the vendor.
 
+### 19. Vendor Enrollment & Anti-Squatting
+- **Bind-Once Namespaces:** Vendors must cryptographically enroll their identities to mint BAINs. The registry uses a strict `Bind-Once` invariant, guaranteeing an enterprise namespace (like "Acme") can never be silently overwritten or squatted by an attacker.
+- **Proof of Possession:** Enrollment enforces strict Challenge-Response cryptography. The vendor must mathematically prove ownership of the private key by signing a fresh ML-DSA challenge nonce issued by the central authority.
+- **Root-Signed Replication:** The vendor identity list is packaged into the global `RegistrySnapshot`. Replicas do not rely on local databases for vendor truth; they mathematically verify the root signature of the global snapshot to establish identity consistency worldwide.
+
 ---
 
 ## Getting Started & Demos
