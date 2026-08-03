@@ -15,10 +15,12 @@ class BirthRecord:
     derived_from: Optional[str] = None
     vendor_pub_key: Optional[str] = None
     artifact_digest: Optional[str] = None
+    read_scopes: Optional[List[str]] = None
+    allowed_egress: Optional[List[str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the BirthRecord to a serializable dictionary matching Section 5.1 payload requirements."""
-        return {
+        res = {
             "identity": self.identity.to_string(),
             "created_at": self.created_at,
             "guardrails": self.guardrails,
@@ -31,6 +33,11 @@ class BirthRecord:
             "artifact_digest": self.artifact_digest,
             "signature": self.signature.hex()
         }
+        if self.read_scopes is not None:
+            res["read_scopes"] = self.read_scopes
+        if self.allowed_egress is not None:
+            res["allowed_egress"] = self.allowed_egress
+        return res
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "BirthRecord":
@@ -45,12 +52,14 @@ class BirthRecord:
             derived_from=data.get("derived_from"),
             vendor_pub_key=data.get("vendor_pub_key"),
             artifact_digest=data.get("artifact_digest"),
+            read_scopes=data.get("read_scopes"),
+            allowed_egress=data.get("allowed_egress"),
             signature=bytes.fromhex(data["signature"])
         )
 
     def to_payload_dict(self) -> Dict[str, Any]:
         """Returns the raw birth payload dictionary used for signing and hashing validation (excludes signature)."""
-        return {
+        res = {
             "identity": self.identity.to_string(),
             "created_at": self.created_at,
             "guardrails": self.guardrails,
@@ -62,6 +71,11 @@ class BirthRecord:
             "vendor_pub_key": self.vendor_pub_key,
             "artifact_digest": self.artifact_digest
         }
+        if self.read_scopes is not None:
+            res["read_scopes"] = self.read_scopes
+        if self.allowed_egress is not None:
+            res["allowed_egress"] = self.allowed_egress
+        return res
 
 @dataclass(frozen=True)
 class HistoryLink:

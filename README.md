@@ -120,6 +120,21 @@ This phase solves the commercial "multi-tenant" problem, ensuring that a softwar
 - **Proof of Possession (Replay-Protected):** Enrollment enforces strict Challenge-Response cryptography. The vendor must mathematically prove ownership of the private key by signing a payload binding a fresh ML-DSA challenge nonce issued by the central authority to their exact entity name (`f"{nonce}:{name}"`). The Central Authority enforces strict single-use memory on all challenges, making token-theft replays or namespace hijacking mathematically impossible.
 - **Root-Signed Replication:** The vendor identity list is packaged into the global `RegistrySnapshot`. Replicas do not rely on local databases for vendor truth; they mathematically verify the root signature of the global snapshot to establish identity consistency worldwide.
 
+## Phase 6 Features (Reconnaissance Gap Defenses)
+This phase strictly seals the "Reconnaissance Gap," where compromised agents could steal data without triggering an active log entry, protecting systems from scenarios like the Hugging Face RCE breach and Reddit scraping incident.
+
+### 20. Read-Scope Manifests
+- **Cryptographic Read Boundaries:** The `BirthRecord` securely seals `read_scopes` and `allowed_egress` manifests. A child deployment (DAIN) is mathematically constrained; it can only declare read scopes that are a strict subset of its parent vendor's authorized limits. 
+
+### 21. Environment Variable Evaporator
+- **Standing Credential Defense:** When an agent sandbox is initialized, the `Evaporator` intercepts the boot sequence. It violently scrubs `os.environ` of all standing credentials (matching keys like `AWS`, `SECRET`, `PASSWORD`) and locks them in a memory-only vault. If an agent executes a zero-day exploit and gains an RCE shell, the environment variables are already empty, destroying the blast radius.
+
+### 22. Verified Reader Handshake
+- **Platform-Side Verification:** The MeshKor SDK's `ReceiverClient.validate()` enforces a `"read"` action type. When an agent attempts to scrape or query data, the resource platform explicitly validates the agent's ProofToken against its `read_scopes`. If the token is valid but the scope is unauthorized, the read is denied. Replay attacks on the read token are structurally blocked.
+
+### 23. Network Egress Firewall
+- **Socket-Level Containment:** The Sandbox runtime implements a low-level socket interceptor. If a compromised agent attempts to pivot laterally (e.g., calling the AWS Metadata IP `169.254.169.254` or unauthorized domains), the firewall mathematically throws a `PermissionError` block, shutting down the lateral movement at the socket level.
+
 ---
 
 ## Getting Started & Demos

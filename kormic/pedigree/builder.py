@@ -16,7 +16,9 @@ def create_birth_record(
     created_at: float = None,
     derived_from: Optional[str] = None,
     vendor_pub_key: Optional[str] = None,
-    artifact_digest: Optional[str] = None
+    artifact_digest: Optional[str] = None,
+    read_scopes: Optional[List[str]] = None,
+    allowed_egress: Optional[List[str]] = None
 ) -> BirthRecord:
     """
     Creates and signs a sealed BirthRecord for the agent.
@@ -38,6 +40,11 @@ def create_birth_record(
         "vendor_pub_key": vendor_pub_key,
         "artifact_digest": artifact_digest
     }
+    
+    if read_scopes is not None:
+        birth_payload["read_scopes"] = read_scopes
+    if allowed_egress is not None:
+        birth_payload["allowed_egress"] = allowed_egress
 
     # Canonical serialization
     serialized_payload = canonical_json(birth_payload)
@@ -56,7 +63,9 @@ def create_birth_record(
         signature=signature,
         derived_from=derived_from,
         vendor_pub_key=vendor_pub_key,
-        artifact_digest=artifact_digest
+        artifact_digest=artifact_digest,
+        read_scopes=read_scopes,
+        allowed_egress=allowed_egress
     )
 
 def initialize_pedigree(birth_record: BirthRecord) -> Pedigree:

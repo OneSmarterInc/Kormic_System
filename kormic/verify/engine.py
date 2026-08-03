@@ -62,6 +62,10 @@ class Verifier:
                 payload_dict["derived_from"] = birth_data.get("derived_from")
                 payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
                 payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
+                if birth_data.get("read_scopes") is not None:
+                    payload_dict["read_scopes"] = birth_data.get("read_scopes")
+                if birth_data.get("allowed_egress") is not None:
+                    payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
 
             serialized_payload = canonical_json(payload_dict)
             is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
@@ -212,6 +216,10 @@ class Verifier:
             payload_dict["derived_from"] = birth_data.get("derived_from")
             payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
             payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
+            if birth_data.get("read_scopes") is not None:
+                payload_dict["read_scopes"] = birth_data.get("read_scopes")
+            if birth_data.get("allowed_egress") is not None:
+                payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
             
         birth_hash = sha256_hex(canonical_json(payload_dict))
 
