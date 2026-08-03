@@ -18,7 +18,7 @@ class TestEnrollmentChain:
         from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
         self.central = CentralRegistryAuthority(self.key_custody)
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, challenge_nonce.encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:vendorX".encode('utf-8')).hex()
         self.central.enroll_vendor("vendorX", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
         self.replica.apply_snapshot(self.central.snapshot())

@@ -53,6 +53,7 @@ class Verifier:
                 "guardrails": birth_data.get("guardrails"),
                 "epoch_number": birth_data.get("epoch_number"),
                 "sig_alg": birth_data.get("sig_alg"),
+                "fmt_ver": birth_data.get("fmt_ver", 1),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
             if self.legacy_single_tier and "derived_from" not in birth_data:
@@ -202,6 +203,7 @@ class Verifier:
             "guardrails": birth_data.get("guardrails"),
             "epoch_number": birth_data.get("epoch_number"),
             "sig_alg": birth_data.get("sig_alg"),
+            "fmt_ver": birth_data.get("fmt_ver", 1),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
         if self.legacy_single_tier and "derived_from" not in birth_data:

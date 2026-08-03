@@ -18,14 +18,14 @@ class TestStorageIsolation:
         from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
         self.central = CentralRegistryAuthority(self.key_custody)
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, challenge_nonce.encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:vendor-multi".encode('utf-8')).hex()
         self.central.enroll_vendor("vendor-multi", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         
         challenge_nonce2 = "test-nonce-2"
         # We need a key pair for true_vendor_pub_key_123, but we only have a hex string in the test.
         # Let's generate a proper key pair.
         priv2, pub2 = MLDSASigner.generate_keypair()
-        possession_sig2 = MLDSASigner.sign(priv2, challenge_nonce2.encode('utf-8')).hex()
+        possession_sig2 = MLDSASigner.sign(priv2, f"{challenge_nonce2}:vendor-squat".encode('utf-8')).hex()
         self.central.enroll_vendor("vendor-squat", pub2.hex(), possession_sig2, "proof2", challenge_nonce2)
         
         self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)

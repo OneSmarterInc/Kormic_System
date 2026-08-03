@@ -10,6 +10,7 @@ class BirthRecord:
     epoch_number: int
     sig_alg: str
     signature: bytes
+    fmt_ver: int = 1
     agent_pub_key: str = ""
     derived_from: Optional[str] = None
     vendor_pub_key: Optional[str] = None
@@ -23,6 +24,7 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
+            "fmt_ver": self.fmt_ver,
             "agent_pub_key": self.agent_pub_key,
             "derived_from": self.derived_from,
             "vendor_pub_key": self.vendor_pub_key,
@@ -38,6 +40,7 @@ class BirthRecord:
             guardrails=data["guardrails"],
             epoch_number=data["epoch_number"],
             sig_alg=data["sig_alg"],
+            fmt_ver=data.get("fmt_ver", 1),
             agent_pub_key=data.get("agent_pub_key", ""),
             derived_from=data.get("derived_from"),
             vendor_pub_key=data.get("vendor_pub_key"),
@@ -53,6 +56,7 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
+            "fmt_ver": self.fmt_ver,
             "agent_pub_key": self.agent_pub_key,
             "derived_from": self.derived_from,
             "vendor_pub_key": self.vendor_pub_key,

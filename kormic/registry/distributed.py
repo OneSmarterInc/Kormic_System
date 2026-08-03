@@ -98,13 +98,16 @@ class CentralRegistryAuthority:
     def enroll_vendor(self, entity_ref: str, public_key: str, possession_proof: str, identity_proof_ref: str, challenge_nonce: str) -> None:
         if not identity_proof_ref:
             raise ValueError("identity_proof_ref is required.")
+        if challenge_nonce in self.spent_nonces:
+            raise ValueError("challenge nonce already used.")
         if entity_ref in self.vendors:
             raise ValueError(f"Vendor '{entity_ref}' has already been bound.")
             
+        signed = f"{challenge_nonce}:{entity_ref}".encode("utf-8")
         try:
             sig_bytes = bytes.fromhex(possession_proof)
             pub_bytes = bytes.fromhex(public_key)
-            if not MLDSASigner.verify(pub_bytes, challenge_nonce.encode('utf-8'), sig_bytes):
+            if not MLDSASigner.verify(pub_bytes, signed, sig_bytes):
                 raise ValueError("Proof of possession failed.")
         except Exception as e:
             raise ValueError(f"Invalid proof of possession: {str(e)}")

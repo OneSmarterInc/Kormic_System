@@ -12,7 +12,7 @@ This system currently implements the **Phase 1 (Core Pedigree)** and **Phase 2 (
 
 ### 1. Agent Pedigree & History Chain
 - **Structured Identity:** Implements the `KMC.<type>.<entity_ref>.<instance>.<realid_hash>` format to ensure safe, immutable identities bound to real-world entities.
-- **Birth Records:** Every agent receives a sealed birth record upon creation containing its identity, guardrails, and creation timestamp, serialized canonically and cryptographically signed.
+- **Birth Records (Self-Describing):** Every agent receives a sealed birth record containing its identity, guardrails, and creation timestamp. For crypto-agility, records are strictly self-describing, structurally sealing the cryptographic algorithm (`sig_alg`) and format version (`fmt_ver`) directly into the payload.
 - **Tamper-Evident History:** Operational events are appended as history links, each containing the SHA-256 hash of the previous link.
 - **Constant-Size Summary:** Avoids O(N) linear growth limits by tracking a fixed 64-byte `running_head` that updates with every new event, mathematically summarizing the entire history up to that point.
 
@@ -117,7 +117,7 @@ This phase solves the commercial "multi-tenant" problem, ensuring that a softwar
 
 ### 19. Vendor Enrollment & Anti-Squatting
 - **Bind-Once Namespaces:** Vendors must cryptographically enroll their identities to mint BAINs. The registry uses a strict `Bind-Once` invariant, guaranteeing an enterprise namespace (like "Acme") can never be silently overwritten or squatted by an attacker.
-- **Proof of Possession:** Enrollment enforces strict Challenge-Response cryptography. The vendor must mathematically prove ownership of the private key by signing a fresh ML-DSA challenge nonce issued by the central authority.
+- **Proof of Possession (Replay-Protected):** Enrollment enforces strict Challenge-Response cryptography. The vendor must mathematically prove ownership of the private key by signing a payload binding a fresh ML-DSA challenge nonce issued by the central authority to their exact entity name (`f"{nonce}:{name}"`). The Central Authority enforces strict single-use memory on all challenges, making token-theft replays or namespace hijacking mathematically impossible.
 - **Root-Signed Replication:** The vendor identity list is packaged into the global `RegistrySnapshot`. Replicas do not rely on local databases for vendor truth; they mathematically verify the root signature of the global snapshot to establish identity consistency worldwide.
 
 ---
