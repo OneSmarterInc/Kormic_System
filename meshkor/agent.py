@@ -56,11 +56,8 @@ class MeshKorAgent:
         """
         nonce = challenge if challenge else os.urandom(16).hex()
         
-        # Sign the head + nonce using the local private key
-        payload = (self.current_head + nonce).encode('utf-8')
-        signature = MLDSASigner.sign(self.private_key, payload).hex()
-        
-        return ProofToken(
+        # Build the token without the signature first to get the payload
+        token = ProofToken(
             agent_code=self.ain,
             birth_record=self.birth_record,
             current_head=self.current_head,
@@ -68,7 +65,25 @@ class MeshKorAgent:
             freshness_timestamp=time.time(),
             authority_reference="v1-local",
             challenge=nonce,
-            signature=signature
+            sig_alg="ML-DSA-44",
+            fmt_ver=1
+        )
+        
+        # Sign the structured payload using the local private key
+        signature = MLDSASigner.sign(self.private_key, token.challenge_payload()).hex()
+        
+        # We must return a new ProofToken with the signature, as dataclasses are frozen
+        return ProofToken(
+            agent_code=self.ain,
+            birth_record=self.birth_record,
+            current_head=self.current_head,
+            history_length=self.history_length,
+            freshness_timestamp=token.freshness_timestamp,
+            authority_reference="v1-local",
+            challenge=nonce,
+            signature=signature,
+            sig_alg="ML-DSA-44",
+            fmt_ver=1
         )
 
 # ==========================================

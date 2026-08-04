@@ -46,16 +46,29 @@ class Verifier:
             if not pub_key:
                 return VerificationResult("ESCALATE", f"Epoch certificate not found locally for epoch {epoch_n}", agent_code, epoch_n)
 
+            sig_alg = birth_data.get("sig_alg")
+            if not sig_alg:
+                return VerificationResult("HALT_HARD", "Missing sig_alg field. Hard cutover enforced.", agent_code, epoch_n)
+                
+            from kormic.crypto.agility import require_allowed_algorithm
+            try:
+                require_allowed_algorithm(sig_alg)
+            except ValueError as e:
+                return VerificationResult("HALT_HARD", str(e), agent_code, epoch_n)
+
             # Reconstruct payload
             payload_dict = {
                 "identity": birth_data.get("identity"),
                 "created_at": birth_data.get("created_at"),
                 "guardrails": birth_data.get("guardrails"),
                 "epoch_number": birth_data.get("epoch_number"),
-                "sig_alg": birth_data.get("sig_alg"),
-                "fmt_ver": birth_data.get("fmt_ver", 1),
+                "sig_alg": sig_alg,
+                "fmt_ver": birth_data.get("fmt_ver"),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
+            
+            if payload_dict["fmt_ver"] is None:
+                return VerificationResult("HALT_HARD", "Missing fmt_ver field. Hard cutover enforced.", agent_code, epoch_n)
             if self.legacy_single_tier and "derived_from" not in birth_data:
                 pass # Legacy births were signed without this key
             else:
@@ -129,6 +142,17 @@ class Verifier:
                     status="HALT_HARD",
                     reason="Head not authenticated: proof token carries no challenge/signature.",
                     agent_code=agent_code, epoch_number=epoch_n)
+                    
+            try:
+                from kormic.crypto.agility import require_allowed_algorithm
+                require_allowed_algorithm(token.sig_alg)
+                if token.fmt_ver is None:
+                    raise ValueError("Missing fmt_ver field. Hard cutover enforced.")
+            except ValueError as e:
+                return VerificationResult(
+                    status="HALT_HARD",
+                    reason=f"Token crypto-agility rejected: {e}",
+                    agent_code=agent_code, epoch_number=epoch_n)
             
             # Anti-Replay and Clock Skew (GAP 3): Strict ±30s tolerance
             now = time.time()
@@ -165,8 +189,8 @@ class Verifier:
                     reason="Head not authenticated: malformed agent key or signature.",
                     agent_code=agent_code, epoch_number=epoch_n)
 
-            # Bind the head into the signed payload
-            bound_payload = (token.current_head + token.challenge).encode('utf-8')
+            # Bind the head into the structured signed payload
+            bound_payload = token.challenge_payload()
             if not MLDSASigner.verify(agent_pub_bytes, bound_payload, sig_bytes_agent):
                 return VerificationResult(
                     status="HALT_HARD",
@@ -207,7 +231,7 @@ class Verifier:
             "guardrails": birth_data.get("guardrails"),
             "epoch_number": birth_data.get("epoch_number"),
             "sig_alg": birth_data.get("sig_alg"),
-            "fmt_ver": birth_data.get("fmt_ver", 1),
+            "fmt_ver": birth_data.get("fmt_ver"),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
         if self.legacy_single_tier and "derived_from" not in birth_data:

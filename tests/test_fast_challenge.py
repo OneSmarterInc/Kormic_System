@@ -71,7 +71,7 @@ class TestFastChallenge(unittest.TestCase):
         
         challenge = self.verifier.generate_challenge()
         # Bind head to challenge
-        payload = (ped.running_head + challenge).encode('utf-8')
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
         
         token = ProofToken(
@@ -95,7 +95,7 @@ class TestFastChallenge(unittest.TestCase):
         ped = Pedigree.from_dict(ped_dict)
         
         challenge = self.verifier.generate_challenge()
-        payload = (ped.running_head + challenge).encode('utf-8')
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
         
         # Hacker tampers with the head in the token, but keeps the same valid signature
@@ -167,7 +167,7 @@ class TestFastChallenge(unittest.TestCase):
         ped = Pedigree.from_dict(ped_dict)
         
         challenge = self.verifier.generate_challenge()
-        payload = (ped.running_head + challenge).encode('utf-8')
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
         
         token = ProofToken(

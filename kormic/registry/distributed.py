@@ -28,7 +28,7 @@ class VendorEnrollment:
     enrolled_at: float
     enrolled_by: str
     identity_proof_ref: str
-    alg: str
+    sig_alg: str
     fmt_ver: int
     version: int
 
@@ -43,6 +43,8 @@ class RegistrySnapshot:
     spent_nonces: List[str]
     checkpoint_indices: Dict[str, int]
     vendors: Dict[str, dict]  # entity_ref -> VendorEnrollment dict
+    sig_alg: str = "ML-DSA-44"
+    fmt_ver: int = 1
     root_sig_hex: str = ""
 
     def payload(self) -> bytes:
@@ -54,7 +56,9 @@ class RegistrySnapshot:
             "revoked_agents": sorted(self.revoked_agents),
             "spent_nonces": sorted(self.spent_nonces),
             "checkpoint_indices": self.checkpoint_indices,
-            "vendors": self.vendors
+            "vendors": self.vendors,
+            "sig_alg": self.sig_alg,
+            "fmt_ver": self.fmt_ver
         }, sort_keys=True).encode('utf-8')
 
 
@@ -123,7 +127,7 @@ class CentralRegistryAuthority:
             enrolled_at=time.time(),
             enrolled_by="central_authority",
             identity_proof_ref=identity_proof_ref,
-            alg="ML-DSA-44",
+            sig_alg="ML-DSA-44",
             fmt_ver=1,
             version=self.version
         )
@@ -231,12 +235,22 @@ class RegionalReplicaRegistry(RegistryReader):
         """
         from kormic.logger import kormic_logger
         
-        # 1. Verify Signature
+        # 1. Verify Crypto-Agility Allowlist
+        try:
+            from kormic.crypto.agility import require_allowed_algorithm
+            require_allowed_algorithm(snap.sig_alg)
+            if snap.fmt_ver is None:
+                raise ValueError("Missing fmt_ver field.")
+        except ValueError as e:
+            kormic_logger.error("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot crypto-agility rejected: {e}")
+            return False
+
+        # 2. Verify Signature
         if not MLDSASigner.verify(self.root_pub_key, snap.payload(), bytes.fromhex(snap.root_sig_hex)):
             kormic_logger.error("SNAPSHOT_PULL", f"REPLICA:{self.region}", "Snapshot rejected: Invalid Root Signature (Forgery detected!)")
             return False
             
-        # 2. Check Version and Freshness
+        # 3. Check Version and Freshness
         if self.snapshot:
             if snap.version < self.snapshot.version:
                 kormic_logger.warning("SNAPSHOT_PULL", f"REPLICA:{self.region}", f"Snapshot rejected: Version {snap.version} is older than current {self.snapshot.version}")

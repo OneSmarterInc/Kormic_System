@@ -16,6 +16,17 @@ class ProofToken:
     challenge: str = ""               # Optional, used for Challenge-Response in Phase 3
     signature: str = ""               # Hex signature of the challenge
     parent_birth_record: Optional[Dict[str, Any]] = None # Serialized parent BAIN if this is a DAIN
+    sig_alg: str = "ML-DSA-44"
+    fmt_ver: int = 1
+
+    def challenge_payload(self) -> bytes:
+        import json
+        return json.dumps({
+            "current_head": self.current_head,
+            "challenge": self.challenge,
+            "sig_alg": self.sig_alg,
+            "fmt_ver": self.fmt_ver
+        }, sort_keys=True).encode('utf-8')
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -27,7 +38,9 @@ class ProofToken:
             "authority_reference": self.authority_reference,
             "challenge": self.challenge,
             "signature": self.signature,
-            "parent_birth_record": self.parent_birth_record
+            "parent_birth_record": self.parent_birth_record,
+            "sig_alg": self.sig_alg,
+            "fmt_ver": self.fmt_ver
         }
 
 @dataclass(frozen=True)

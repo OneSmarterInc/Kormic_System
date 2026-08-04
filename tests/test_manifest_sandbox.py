@@ -66,7 +66,7 @@ class TestManifestSandbox(unittest.TestCase):
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         challenge = os.urandom(16).hex()
-        payload = (ped.running_head + challenge).encode('utf-8')
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
         signature = MLDSASigner.sign(self.agent_priv, payload).hex()
         
         return ProofToken(
