@@ -126,14 +126,14 @@ This phase strictly seals the "Reconnaissance Gap," where compromised agents cou
 ### 20. Read-Scope Manifests
 - **Cryptographic Read Boundaries:** The `BirthRecord` securely seals `read_scopes` and `allowed_egress` manifests. A child deployment (DAIN) is mathematically constrained; it can only declare read scopes that are a strict subset of its parent vendor's authorized limits. 
 
-### 21. Environment Variable Evaporator
-- **Standing Credential Defense:** When an agent sandbox is initialized, the `Evaporator` intercepts the boot sequence. It violently scrubs `os.environ` of all standing credentials (matching keys like `AWS`, `SECRET`, `PASSWORD`) and locks them in a memory-only vault. If an agent executes a zero-day exploit and gains an RCE shell, the environment variables are already empty, destroying the blast radius.
+### 21. Session-Scoped Environment Evaporation
+- **Standing Credential Defense:** When an agent sandbox is initialized, the `Evaporator` securely scopes its execution context. Rather than altering the host machine's global environment, it identifies standing credentials (matching keys like `AWS`, `SECRET`, `PASSWORD`) and locks them in a session-only memory vault, yielding a mathematically scrubbed environment dictionary for sidecar or subprocess injection. 
 
 ### 22. Verified Reader Handshake
 - **Platform-Side Verification:** The MeshKor SDK's `ReceiverClient.validate()` enforces a `"read"` action type. When an agent attempts to scrape or query data, the resource platform explicitly validates the agent's ProofToken against its `read_scopes`. If the token is valid but the scope is unauthorized, the read is denied. Replay attacks on the read token are structurally blocked.
 
-### 23. Network Egress Firewall
-- **Socket-Level Containment:** The Sandbox runtime implements a low-level socket interceptor. If a compromised agent attempts to pivot laterally (e.g., calling the AWS Metadata IP `169.254.169.254` or unauthorized domains), the firewall mathematically throws a `PermissionError` block, shutting down the lateral movement at the socket level.
+### 23. Attested Egress Firewall
+- **Session-Boundary Containment:** The Sandbox explicitly declares and attests the agent's `allowed_egress` target scope. True enforcement is paired with out-of-process network controls (like an infrastructure sidecar or proxy), ensuring multiple concurrent agents cannot clobber each other's network policies in a shared interpreter.
 
 ---
 

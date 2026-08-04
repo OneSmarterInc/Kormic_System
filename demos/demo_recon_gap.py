@@ -100,19 +100,19 @@ def run_demo():
     print("[!] Initializing MeshKor Sandbox with Evaporator & Egress Firewall...")
     sandbox = Sandbox(verifier, token)
     
-    print("\n[+] Attempting to read standing credentials from os.environ...")
-    if "AWS_SECRET_KEY" not in os.environ:
-        print("    --> SUCCESS: MeshKor Evaporator destroyed AWS_SECRET_KEY at boot.")
+    print("\n[+] Attempting to read standing credentials from the Sandbox Session Environment...")
+    if "AWS_SECRET_KEY" not in sandbox.session_env:
+        print("    --> SUCCESS: MeshKor Evaporator scrubbed AWS_SECRET_KEY from the session context.")
+        print("    --> (And importantly, the host process os.environ remains untouched!)")
     else:
-        print("    --> FAILURE: AWS_SECRET_KEY is still present!")
+        print("    --> FAILURE: AWS_SECRET_KEY is still present in session_env!")
 
-    print("[+] Attempting to pivot to AWS Metadata IP (169.254.169.254)...")
+    print("\n[+] Attempting to pivot to AWS Metadata IP (169.254.169.254)...")
     try:
-        s = socket.socket()
-        s.connect(("169.254.169.254", 80))
-        print("    --> FAILURE: Connected to unauthorized IP!")
+        sandbox.check_egress("169.254.169.254")
+        print("    --> FAILURE: Attested as allowed!")
     except PermissionError as e:
-        print(f"    --> SUCCESS: MeshKor Egress Firewall blocked pivot. ({e})")
+        print(f"    --> SUCCESS: MeshKor Egress Firewall Policy blocked pivot. ({e})")
     except Exception as e:
         print(f"    --> OTHER ERROR: {e}")
 

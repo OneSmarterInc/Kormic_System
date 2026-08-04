@@ -58,6 +58,7 @@ class TestReconGap:
             agent_pub_key=vpub.hex() # Just use vendor key for agent proof for simplicity
         )
         self.agent_priv = vpriv
+        self.agent_pub = vpub.hex()
         
         self.verifier = Verifier(self.registry)
         self.authority = LocalAuthority(self.manager, self.verifier, self.central, self.registry)
@@ -76,66 +77,69 @@ class TestReconGap:
                 derived_from=self.bain_res.agent_code
             )
 
-    def test_evaporate_environment(self):
-        # Set dummy secret
+    def test_sandbox_concurrency_isolation(self):
+        # 1. Setup host environment
         os.environ["AWS_SECRET_KEY"] = "super-secret-key-123"
         os.environ["PUBLIC_VAR"] = "public"
         
-        # Build token to init sandbox
-        ped_dict = self.store.get(self.dain_res.agent_code)
+        # Build tokens
         bain_ped_dict = self.store.get(self.bain_res.agent_code)
         
-        nonce = self.verifier.generate_challenge()
-        payload = ("head_hash" + nonce).encode()
+        # DAIN 1 (Allows reddit)
+        dain1_res = self.manager.register_new_agent(
+            agent_type="DPL", entity_ref="hosp", instance_num="1_conc",
+            real_world_id="h1", guardrails={"allowed_tools": ["search"]}, read_scopes=[], allowed_egress=["api.reddit.com"],
+            derived_from=self.bain_res.agent_code, agent_pub_key=self.agent_pub
+        )
+        nonce1 = self.verifier.generate_challenge()
         from kormic.crypto.algorithms import MLDSASigner
-        sig = MLDSASigner.sign(self.agent_priv, payload).hex()
-        
-        token = ProofToken(
-            agent_code=self.dain_res.agent_code,
-            birth_record=ped_dict["birth_record"],
-            current_head="head_hash",
-            history_length=0,
-            freshness_timestamp=time.time(),
-            authority_reference="test",
-            parent_birth_record=bain_ped_dict["birth_record"],
-            challenge=nonce,
-            signature=sig
+        sig1 = MLDSASigner.sign(self.agent_priv, ("head_hash" + nonce1).encode()).hex()
+        token1 = ProofToken(
+            agent_code=dain1_res.agent_code, birth_record=self.store.get(dain1_res.agent_code)["birth_record"],
+            current_head="head_hash", history_length=0, freshness_timestamp=time.time(),
+            authority_reference="test", parent_birth_record=bain_ped_dict["birth_record"],
+            challenge=nonce1, signature=sig1
         )
         
-        sandbox = Sandbox(self.verifier, token)
+        # DAIN 2 (Allows github)
+        dain2_res = self.manager.register_new_agent(
+            agent_type="DPL", entity_ref="hosp", instance_num="2_conc",
+            real_world_id="h2", guardrails={"allowed_tools": ["search"]}, read_scopes=[], allowed_egress=["api.github.com"],
+            derived_from=self.bain_res.agent_code, agent_pub_key=self.agent_pub
+        )
+        nonce2 = self.verifier.generate_challenge()
+        sig2 = MLDSASigner.sign(self.agent_priv, ("head_hash" + nonce2).encode()).hex()
+        token2 = ProofToken(
+            agent_code=dain2_res.agent_code, birth_record=self.store.get(dain2_res.agent_code)["birth_record"],
+            current_head="head_hash", history_length=0, freshness_timestamp=time.time(),
+            authority_reference="test", parent_birth_record=bain_ped_dict["birth_record"],
+            challenge=nonce2, signature=sig2
+        )
         
-        # Sandbox should have evaporated it
-        assert "AWS_SECRET_KEY" not in os.environ
+        # 2. Stand up two sessions concurrently
+        sandbox1 = Sandbox(self.verifier, token1)
+        sandbox2 = Sandbox(self.verifier, token2)
+        
+        # Assertion 1: Neither session deletes or alters the host process os.environ
+        assert "AWS_SECRET_KEY" in os.environ
         assert "PUBLIC_VAR" in os.environ
-        assert sandbox.secure_vault["AWS_SECRET_KEY"] == "super-secret-key-123"
-
-    def test_egress_firewall(self):
-        # Build token
-        ped_dict = self.store.get(self.dain_res.agent_code)
-        bain_ped_dict = self.store.get(self.bain_res.agent_code)
+        assert os.environ["AWS_SECRET_KEY"] == "super-secret-key-123"
         
-        nonce = self.verifier.generate_challenge()
-        payload = ("head_hash" + nonce).encode()
-        from kormic.crypto.algorithms import MLDSASigner
-        sig = MLDSASigner.sign(self.agent_priv, payload).hex()
+        # Assertion 1b: But their session_env and secure_vault are correctly isolated
+        assert "AWS_SECRET_KEY" not in sandbox1.session_env
+        assert sandbox1.secure_vault["AWS_SECRET_KEY"] == "super-secret-key-123"
         
-        token = ProofToken(
-            agent_code=self.dain_res.agent_code,
-            birth_record=ped_dict["birth_record"],
-            current_head="head_hash",
-            history_length=0,
-            freshness_timestamp=time.time(),
-            authority_reference="test",
-            parent_birth_record=bain_ped_dict["birth_record"],
-            challenge=nonce,
-            signature=sig
-        )
-        sandbox = Sandbox(self.verifier, token)
+        # Assertion 2: The second session does not block a host the first session is allowed to reach
+        assert sandbox1.check_egress("api.reddit.com") is True
         
-        # Try to connect to forbidden domain (e.g., AWS metadata)
-        with pytest.raises(PermissionError, match="FIREWALL BLOCKED"):
-            s = socket.socket()
-            s.connect(("169.254.169.254", 80))
+        # Assertion 3: The first session cannot reach a host only the second session is allowed to reach
+        with pytest.raises(PermissionError):
+            sandbox1.check_egress("api.github.com")
+            
+        with pytest.raises(PermissionError):
+            sandbox2.check_egress("api.reddit.com")
+            
+        assert sandbox2.check_egress("api.github.com") is True
 
     def test_verified_reader_handshake(self):
         ped_dict = self.store.get(self.dain_res.agent_code)
