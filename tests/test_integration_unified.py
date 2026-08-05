@@ -85,7 +85,7 @@ class TestUnifiedSystemIntegration(unittest.TestCase):
             current_head=ped_dict["running_head"],
             freshness_timestamp=time.time(),
             authority_reference="central"
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         res = self.verifier.verify_fast(token)
         self.assertEqual(res.status, "PASS")
 
@@ -156,7 +156,7 @@ class TestUnifiedSystemIntegration(unittest.TestCase):
             current_head=restored_pedigree.running_head,
             freshness_timestamp=time.time(),
             authority_reference="central"
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # Un-revoke the agent centrally to allow it to pass again (simulating human review clearing the flag)
         self.central_registry.revoked_agents.remove(agent_code)

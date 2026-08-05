@@ -16,8 +16,8 @@ class ProofToken:
     challenge: str = ""               # Optional, used for Challenge-Response in Phase 3
     signature: str = ""               # Hex signature of the challenge
     parent_birth_record: Optional[Dict[str, Any]] = None # Serialized parent BAIN if this is a DAIN
-    sig_alg: str = "ML-DSA-44"
-    fmt_ver: int = 1
+    sig_alg: str = None
+    fmt_ver: int = None
 
     def challenge_payload(self) -> bytes:
         import json

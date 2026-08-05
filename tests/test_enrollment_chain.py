@@ -10,7 +10,7 @@ class TestEnrollmentChain:
         self.key_custody = SoftwareKeyCustody()
         self.key_custody.generate_epoch_key(1)
         from kormic.crypto.algorithms import MLDSASigner
-        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         self.vendor_pub_hex = self.vendor_pub.hex()
         
         self.db_path = f"test_enrollment_{uuid.uuid4().hex}.db"
@@ -18,7 +18,7 @@ class TestEnrollmentChain:
         from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
         self.central = CentralRegistryAuthority(self.key_custody)
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:vendorX".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:vendorX".encode('utf-8')).hex()
         self.central.enroll_vendor("vendorX", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
         self.replica.apply_snapshot(self.central.snapshot())
@@ -48,7 +48,7 @@ class TestEnrollmentChain:
         from kormic.crypto.algorithms import MLDSASigner
         # 1. Enroll BAIN
         artifact_digest = "sha256_abcdef123"
-        artifact_sig = MLDSASigner.sign(self.vendor_priv, b"vendorX1.0.0" + artifact_digest.encode('utf-8')).hex()
+        artifact_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, b"vendorX1.0.0" + artifact_digest.encode('utf-8')).hex()
         
         bain_result = self.manager.register_new_agent(
             agent_type="BLD",

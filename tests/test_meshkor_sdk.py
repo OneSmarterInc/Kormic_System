@@ -89,8 +89,8 @@ def test_sdk_forged_but_signed_head(meshkor_system):
     
     # The attacker RE-SIGNS the forged head with their valid private key
     import json
-    payload = json.dumps({"challenge": challenge, "current_head": fake_head, "fmt_ver": 1, "sig_alg": "ML-DSA-44"}, sort_keys=True).encode('utf-8')
-    forged_sig = MLDSASigner.sign(agent.private_key, payload).hex()
+    payload = json.dumps({"challenge": challenge, "current_head": fake_head, "fmt_ver": 1, "sig_alg": "ML-DSA-87"}, sort_keys=True).encode('utf-8')
+    forged_sig = MLDSASigner.sign('ML-DSA-87', agent.private_key, payload).hex()
     
     forged_token = dataclasses.replace(
         agent.mint_token(challenge),
@@ -106,8 +106,8 @@ def test_sdk_forged_but_signed_head(meshkor_system):
     # to prove real-time liveness during the escalation. We mint a fresh token here 
     # to avoid the replay trap and test the actual head-matching logic.
     challenge_full = rc.new_challenge()
-    payload_full = json.dumps({"challenge": challenge_full, "current_head": fake_head, "fmt_ver": 1, "sig_alg": "ML-DSA-44"}, sort_keys=True).encode('utf-8')
-    forged_sig_full = MLDSASigner.sign(agent.private_key, payload_full).hex()
+    payload_full = json.dumps({"challenge": challenge_full, "current_head": fake_head, "fmt_ver": 1, "sig_alg": "ML-DSA-87"}, sort_keys=True).encode('utf-8')
+    forged_sig_full = MLDSASigner.sign('ML-DSA-87', agent.private_key, payload_full).hex()
     
     forged_token_full = dataclasses.replace(
         agent.mint_token(challenge_full),
@@ -148,7 +148,7 @@ def test_sdk_wrong_key(meshkor_system):
     agent = MeshKorAgent.enroll(authority, "CMP", "test_co", "0001", "id123", {})
     
     # Swap out the agent's private key for a totally different one
-    bad_priv_key, _ = MLDSASigner.generate_keypair()
+    bad_priv_key, _ = MLDSASigner.generate_keypair('ML-DSA-87')
     agent.private_key = bad_priv_key
     
     rc = ReceiverClient(authority)

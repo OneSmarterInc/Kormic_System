@@ -34,7 +34,7 @@ class TestFastChallenge(unittest.TestCase):
         self.verifier = Verifier(self.registry)
         
         # Agent keypair
-        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair()
+        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         
         self.manifest = {
             "allowed_tools": ["tool1"],
@@ -71,8 +71,8 @@ class TestFastChallenge(unittest.TestCase):
         
         challenge = self.verifier.generate_challenge()
         # Bind head to challenge
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        signature = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         token = ProofToken(
             agent_code=self.ain,
@@ -83,7 +83,7 @@ class TestFastChallenge(unittest.TestCase):
             authority_reference="test",
             challenge=challenge,
             signature=signature
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(token)
         self.assertEqual(res.status, "PASS")
@@ -95,8 +95,8 @@ class TestFastChallenge(unittest.TestCase):
         ped = Pedigree.from_dict(ped_dict)
         
         challenge = self.verifier.generate_challenge()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        signature = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         # Hacker tampers with the head in the token, but keeps the same valid signature
         tampered_head = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -109,7 +109,7 @@ class TestFastChallenge(unittest.TestCase):
             authority_reference="test",
             challenge=challenge,
             signature=signature
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(token)
         # Signature should fail because verification checks (tampered_head + challenge)
@@ -132,7 +132,7 @@ class TestFastChallenge(unittest.TestCase):
             authority_reference="x",
             challenge="",
             signature=""
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(attacker_token)
         self.assertEqual(res.status, "HALT_HARD")
@@ -153,7 +153,7 @@ class TestFastChallenge(unittest.TestCase):
             authority_reference="x",
             challenge="",
             signature=""
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         cr = CredentialRoot(self.verifier)
         res = cr.issue_scoped_credential(attacker_token, "scope1")
@@ -167,8 +167,8 @@ class TestFastChallenge(unittest.TestCase):
         ped = Pedigree.from_dict(ped_dict)
         
         challenge = self.verifier.generate_challenge()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        signature = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         token = ProofToken(
             agent_code=self.ain,
@@ -179,7 +179,7 @@ class TestFastChallenge(unittest.TestCase):
             authority_reference="test",
             challenge=challenge,
             signature=signature
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # Turn the flag on explicitly
         self.verifier.legacy_single_tier = True

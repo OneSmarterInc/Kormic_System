@@ -9,7 +9,7 @@ class TestContainment:
         self.key_custody = SoftwareKeyCustody()
         self.key_custody.generate_epoch_key(1)
         from kormic.crypto.algorithms import MLDSASigner
-        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         self.vendor_pub_hex = self.vendor_pub.hex()
         
         self.db_path = f"test_containment_{uuid.uuid4().hex}.db"
@@ -17,7 +17,7 @@ class TestContainment:
         from kormic.registry.distributed import CentralRegistryAuthority, RegionalReplicaRegistry
         self.central = CentralRegistryAuthority(self.key_custody)
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
         self.replica.apply_snapshot(self.central.snapshot())
@@ -31,7 +31,7 @@ class TestContainment:
 
         # Create a BAIN (Vendor Build)
         artifact_digest = "sha256_deadbeef1234"
-        artifact_sig = MLDSASigner.sign(self.vendor_priv, b"acme2.1.0" + artifact_digest.encode('utf-8')).hex()
+        artifact_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, b"acme2.1.0" + artifact_digest.encode('utf-8')).hex()
 
         self.vendor_guardrails = {
             "allowed_tools": ["toolA", "toolB", "toolC"],

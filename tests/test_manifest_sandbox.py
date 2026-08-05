@@ -33,7 +33,7 @@ class TestManifestSandbox(unittest.TestCase):
         self.credential_root = CredentialRoot(self.verifier)
         
         # 1. Agent Keypair for FAST Challenge
-        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair()
+        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         
         # 2. Capability Manifest (C3 Code Pinning removed for optional Phase)
         self.manifest = {
@@ -66,8 +66,8 @@ class TestManifestSandbox(unittest.TestCase):
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         challenge = os.urandom(16).hex()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        signature = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         return ProofToken(
             agent_code=self.ain,
@@ -78,7 +78,7 @@ class TestManifestSandbox(unittest.TestCase):
             authority_reference="test",
             challenge=challenge,
             signature=signature
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
     def test_sandbox_works_genuine_agent(self):
         # WORKS TEST: Genuine agent running correct code

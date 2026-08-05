@@ -29,10 +29,11 @@ class SoftwareKeyCustody(KeyCustody):
     Software implementation of KeyCustody for Phase 1.
     All keys are held in memory. Real HSM/threshold isolation is swapped in Phase 3.
     """
-    def __init__(self):
+    def __init__(self, sig_alg: str = "ML-DSA-87"):
+        self.sig_alg = sig_alg
         # DEV_KEY_NOT_PRODUCTION
         # Root key pair initialization
-        self._root_priv, self._root_pub = MLDSASigner.generate_keypair()
+        self._root_priv, self._root_pub = MLDSASigner.generate_keypair(self.sig_alg)
         # Holds epoch private/public keys mapping: epoch_num -> (priv, pub)
         self._epoch_keys: Dict[int, Tuple[bytes, bytes]] = {}
         # Certified epoch verification keys (signed certificates)
@@ -46,12 +47,12 @@ class SoftwareKeyCustody(KeyCustody):
         Satisfies Section 5.5 & 6.
         """
         # DEV_KEY_NOT_PRODUCTION
-        priv, pub = MLDSASigner.generate_keypair()
+        priv, pub = MLDSASigner.generate_keypair(self.sig_alg)
         self._epoch_keys[epoch_n] = (priv, pub)
         
         # Certified verification payload: certifies that pub belongs to epoch_n
         cert_payload = f"EPOCH_CERTIFICATE:{epoch_n}:".encode('utf-8') + pub
-        epoch_certificate = MLDSASigner.sign(self._root_priv, cert_payload)
+        epoch_certificate = MLDSASigner.sign(self.sig_alg, self._root_priv, cert_payload)
         self._epoch_certificates[epoch_n] = epoch_certificate
         return priv, pub
 
@@ -67,7 +68,7 @@ class SoftwareKeyCustody(KeyCustody):
             return False
         cert = self._epoch_certificates[epoch_n]
         cert_payload = f"EPOCH_CERTIFICATE:{epoch_n}:".encode('utf-8') + public_key
-        return MLDSASigner.verify(self._root_pub, cert_payload, cert)
+        return MLDSASigner.verify(self.sig_alg, self._root_pub, cert_payload, cert)
 
     def sign_birth(self, epoch_n: int, payload: bytes) -> bytes:
         """Signs birth record payload via epoch private key."""
@@ -78,7 +79,7 @@ class SoftwareKeyCustody(KeyCustody):
             raise CryptographicError(f"No signing key available for epoch: {epoch_n}")
         
         priv_key = self._epoch_keys[epoch_n][0]
-        return MLDSASigner.sign(priv_key, payload)
+        return MLDSASigner.sign(self.sig_alg, priv_key, payload)
 
     def epoch_public(self, epoch_n: int) -> bytes:
         """Retrieves public key for verifying signature issued during epoch_n."""

@@ -26,9 +26,10 @@ This system currently implements the **Phase 1 (Core Pedigree)** and **Phase 2 (
 - **Metric Thresholds:** Evaluates rolling metrics including accuracy, overconfidence, guardrail hits, and latency drift.
 - **Tiered Verdicts:** Automatically outputs `OK`, `FLAG`, or `HALT` verdicts based on tunable thresholds, isolating genuine agents that misbehave.
 
-### 4. Cryptographic Key Custody (Dev/Software Mode)
+### 4. Cryptographic Key Custody & Crypto-Agility (Dev/Software Mode)
 - **Epoch Keys:** Uses a root-and-epoch hierarchy for key rotation and revocation.
-- **Post-Quantum Signatures:** Implements real ML-DSA-44 post-quantum signature logic for birth record signing.
+- **Crypto-Agility:** The `MLDSASigner` is algorithm-parametric. Signatures explicitly declare their algorithm (e.g., `sig_alg`) and format (`fmt_ver`), allowing the verifier to dynamically dispatch validation.
+- **Post-Quantum Signatures:** Upgraded to NIST Level 5 (`ML-DSA-87`) as the default for all root, epoch, and birth record signatures.
 - *Note: All keys currently use software-based implementations and are strictly marked with `# DEV_KEY_NOT_PRODUCTION` for safe testing prior to Phase 3 hardware isolation.*
 
 ---

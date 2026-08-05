@@ -20,9 +20,9 @@ class TestReconGap:
         
         # Setup vendor
         from kormic.crypto.algorithms import MLDSASigner
-        vpriv, vpub = MLDSASigner.generate_keypair()
+        vpriv, vpub = MLDSASigner.generate_keypair('ML-DSA-87')
         nonce = "recon-nonce"
-        sig = MLDSASigner.sign(vpriv, f"{nonce}:vendor_recon".encode()).hex()
+        sig = MLDSASigner.sign('ML-DSA-87', vpriv, f"{nonce}:vendor_recon".encode()).hex()
         self.central.enroll_vendor("vendor_recon", vpub.hex(), sig, "id-doc", nonce)
         
         self.store = SQLiteRecordStore(":memory:")
@@ -40,7 +40,7 @@ class TestReconGap:
             guardrails={"allowed_tools": ["search"]},
             read_scopes=["public_api", "reddit_changemyview"],
             allowed_egress=["api.reddit.com", "api.github.com"],
-            artifact_signature=MLDSASigner.sign(vpriv, "vendor_reconv1digest1".encode()).hex(),
+            artifact_signature=MLDSASigner.sign('ML-DSA-87', vpriv, "vendor_reconv1digest1".encode()).hex(),
             vendor_pub_key=vpub.hex(),
             artifact_digest="digest1"
         )
@@ -94,14 +94,14 @@ class TestReconGap:
         nonce1 = self.verifier.generate_challenge()
         from kormic.crypto.algorithms import MLDSASigner
         import json
-        payload1 = json.dumps({"challenge": nonce1, "current_head": "head_hash", "fmt_ver": 1, "sig_alg": "ML-DSA-44"}, sort_keys=True).encode('utf-8')
-        sig1 = MLDSASigner.sign(self.agent_priv, payload1).hex()
+        payload1 = json.dumps({"challenge": nonce1, "current_head": "head_hash", "fmt_ver": 1, "sig_alg": "ML-DSA-87"}, sort_keys=True).encode('utf-8')
+        sig1 = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload1).hex()
         token1 = ProofToken(
             agent_code=dain1_res.agent_code, birth_record=self.store.get(dain1_res.agent_code)["birth_record"],
             current_head="head_hash", history_length=0, freshness_timestamp=time.time(),
             authority_reference="test", parent_birth_record=bain_ped_dict["birth_record"],
             challenge=nonce1, signature=sig1
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # DAIN 2 (Allows github)
         dain2_res = self.manager.register_new_agent(
@@ -110,14 +110,14 @@ class TestReconGap:
             derived_from=self.bain_res.agent_code, agent_pub_key=self.agent_pub
         )
         nonce2 = self.verifier.generate_challenge()
-        payload2 = json.dumps({"challenge": nonce2, "current_head": "head_hash", "fmt_ver": 1, "sig_alg": "ML-DSA-44"}, sort_keys=True).encode('utf-8')
-        sig2 = MLDSASigner.sign(self.agent_priv, payload2).hex()
+        payload2 = json.dumps({"challenge": nonce2, "current_head": "head_hash", "fmt_ver": 1, "sig_alg": "ML-DSA-87"}, sort_keys=True).encode('utf-8')
+        sig2 = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload2).hex()
         token2 = ProofToken(
             agent_code=dain2_res.agent_code, birth_record=self.store.get(dain2_res.agent_code)["birth_record"],
             current_head="head_hash", history_length=0, freshness_timestamp=time.time(),
             authority_reference="test", parent_birth_record=bain_ped_dict["birth_record"],
             challenge=nonce2, signature=sig2
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # 2. Stand up two sessions concurrently
         sandbox1 = Sandbox(self.verifier, token1)
@@ -149,9 +149,9 @@ class TestReconGap:
         bain_ped_dict = self.store.get(self.bain_res.agent_code)
         
         nonce = self.verifier.generate_challenge()
-        import json; payload = json.dumps({'challenge': nonce, 'current_head': 'head_hash', 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
+        import json; payload = json.dumps({'challenge': nonce, 'current_head': 'head_hash', 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
         from kormic.crypto.algorithms import MLDSASigner
-        sig = MLDSASigner.sign(self.agent_priv, payload).hex()
+        sig = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         token = ProofToken(
             agent_code=self.dain_res.agent_code,
@@ -163,7 +163,7 @@ class TestReconGap:
             parent_birth_record=bain_ped_dict["birth_record"],
             challenge=nonce,
             signature=sig
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # Valid read
         verdict = self.receiver.validate(token, action_type="read", resource="reddit_changemyview")
@@ -171,8 +171,8 @@ class TestReconGap:
         
         # Unauthorized read (not in DAIN's read scopes)
         nonce2 = self.verifier.generate_challenge()
-        import json; payload2 = json.dumps({'challenge': nonce2, 'current_head': 'head_hash', 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        sig2 = MLDSASigner.sign(self.agent_priv, payload2).hex()
+        import json; payload2 = json.dumps({'challenge': nonce2, 'current_head': 'head_hash', 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        sig2 = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload2).hex()
         token2 = ProofToken(
             agent_code=self.dain_res.agent_code,
             birth_record=ped_dict["birth_record"],
@@ -183,7 +183,7 @@ class TestReconGap:
             parent_birth_record=bain_ped_dict["birth_record"],
             challenge=nonce2,
             signature=sig2
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         verdict = self.receiver.validate(token2, action_type="read", resource="reddit_politics")
         assert verdict.ok is False
         assert "not authorized to read resource" in verdict.reason

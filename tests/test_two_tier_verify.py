@@ -21,7 +21,7 @@ class TestTwoTierVerify:
         
         bain_identity = Identity("BLD", "acme", "2.1.0", "a" * 64)
         from kormic.crypto.algorithms import MLDSASigner
-        vendor_priv, vendor_pub = MLDSASigner.generate_keypair()
+        vendor_priv, vendor_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         self.vendor_pub_hex = vendor_pub.hex()
         self.artifact_digest = "sha256_two_tier"
 
@@ -29,7 +29,7 @@ class TestTwoTierVerify:
             identity=bain_identity,
             guardrails={"tool": ["A", "B"]},
             epoch_number=1,
-            sig_alg="ML-DSA-44",
+            sig_alg="ML-DSA-87",
             key_custody=self.key_custody,
             vendor_pub_key=self.vendor_pub_hex,
             artifact_digest=self.artifact_digest
@@ -41,7 +41,7 @@ class TestTwoTierVerify:
             identity=dain_identity,
             guardrails={"tool": ["A"]},
             epoch_number=1,
-            sig_alg="ML-DSA-44",
+            sig_alg="ML-DSA-87",
             key_custody=self.key_custody,
             derived_from=self.bain_code
         )
@@ -59,7 +59,7 @@ class TestTwoTierVerify:
             freshness_timestamp=time.time(),
             authority_reference="test",
             parent_birth_record=self.bain_birth.to_dict()
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(token)
         assert res.status == "PASS"
@@ -73,7 +73,7 @@ class TestTwoTierVerify:
             freshness_timestamp=time.time(),
             authority_reference="test",
             parent_birth_record=None
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(token)
         assert res.status == "HALT_HARD"
@@ -91,7 +91,7 @@ class TestTwoTierVerify:
             freshness_timestamp=time.time(),
             authority_reference="test",
             parent_birth_record=self.bain_birth.to_dict()
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         res = self.verifier.verify_fast(token)
         assert res.status == "REVOKED"
@@ -113,7 +113,7 @@ class TestTwoTierVerify:
             freshness_timestamp=time.time(),
             authority_reference="test",
             parent_birth_record=None
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         # Should verify without throwing signature mismatch
         res = self.verifier.verify_fast(token, mode="build_only")
         assert res.status == "PASS"
@@ -130,7 +130,7 @@ class TestTwoTierVerify:
             parent_birth_record=None,
             challenge="",
             signature=""
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         res = self.verifier.verify_fast(token, mode="build_only")
         assert res.status == "PASS"
         assert res.verified_scope == "build"

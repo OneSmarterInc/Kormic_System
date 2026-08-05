@@ -1,4 +1,4 @@
-ALLOWED_SIG_ALGS = ["ML-DSA-44"]
+ALLOWED_SIG_ALGS = ["ML-DSA-44", "ML-DSA-87"]
 
 def require_allowed_algorithm(sig_alg: str):
     """

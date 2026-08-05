@@ -101,8 +101,8 @@ class AgentManager:
             
             if not self.registry_reader:
                 raise ValueError("BAIN registration requires a RegistryReader to verify vendor enrollment.")
-            enrolled_key = self.registry_reader.get_enrolled_vendor(entity_ref)
-            if enrolled_key != vendor_pub_key:
+            enrolled_vendor = self.registry_reader.get_enrolled_vendor(entity_ref)
+            if not enrolled_vendor or enrolled_vendor.get('public_key') != vendor_pub_key:
                 raise ValueError("Vendor Squatting Attempt: Key does not match enrolled vendor or vendor not enrolled.")
             
             from kormic.crypto.algorithms import MLDSASigner
@@ -110,7 +110,8 @@ class AgentManager:
             try:
                 sig_bytes = bytes.fromhex(artifact_signature)
                 pub_bytes = bytes.fromhex(vendor_pub_key)
-                if not MLDSASigner.verify(pub_bytes, payload, sig_bytes):
+                vendor_alg = enrolled_vendor.get('sig_alg', 'ML-DSA-44')
+                if not MLDSASigner.verify(vendor_alg, pub_bytes, payload, sig_bytes):
                     raise ValueError("Artifact signature verification failed.")
             except Exception as e:
                 raise ValueError(f"Invalid artifact binding: {str(e)}")
@@ -136,7 +137,7 @@ class AgentManager:
             identity=identity,
             guardrails=guardrails,
             epoch_number=self.default_epoch,
-            sig_alg="ML-DSA-44",
+            sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
             key_custody=self.key_custody,
             agent_pub_key=agent_pub_key,
             derived_from=derived_from,

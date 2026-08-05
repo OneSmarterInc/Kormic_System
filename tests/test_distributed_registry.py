@@ -15,7 +15,7 @@ class TestDistributedRegistry(unittest.TestCase):
         
         # 2. Setup the Agent and Birth Record
         self.agent_code = "KMC.STU.agent001.0001.hash"
-        payload = b'{"identity": "fake", "created_at": 100, "guardrails": [], "epoch_number": 1, "sig_alg": "ML-DSA-44"}'
+        payload = b'{"identity": "fake", "created_at": 100, "guardrails": [], "epoch_number": 1, "sig_alg": "ML-DSA-87"}'
         sig = self.key_custody.sign_birth(1, payload)
         
         self.birth_record = {
@@ -23,7 +23,7 @@ class TestDistributedRegistry(unittest.TestCase):
             "created_at": 100,
             "guardrails": [],
             "epoch_number": 1,
-            "sig_alg": "ML-DSA-44",
+            "sig_alg": "ML-DSA-87",
             "signature": sig.hex()
         }
         self.token = ProofToken(
@@ -33,7 +33,7 @@ class TestDistributedRegistry(unittest.TestCase):
             current_head="fakehead",
             freshness_timestamp=time.time(),
             authority_reference="central_mock"
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
         
         # 3. Take baseline snapshot and spin up Replicas
         baseline_snap = self.central.snapshot()

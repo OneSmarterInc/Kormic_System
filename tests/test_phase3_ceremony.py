@@ -101,7 +101,7 @@ class TestSelfDefense(unittest.TestCase):
         self.verifier = Verifier(self.replica)
         self.monitor = BehaviorMonitor(BehaviorConfig(0.8,0.5,0.2,0.5,0.1,0.3,2.0,5.0))
         
-        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair()
+        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         manifest = {"allowed_tools": [], "allowed_endpoints": [], "credential_scopes": [], "blast_radius": "test", "irreversible_scopes": []}
         self.ain, _ = self.manager.register_new_agent("CMP", "defense", "0001", "id", manifest, agent_pub_key=self.agent_pub.hex())
         
@@ -118,9 +118,9 @@ class TestSelfDefense(unittest.TestCase):
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         challenge = os.urandom(16).hex()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        sig = MLDSASigner.sign(self.agent_priv, payload).hex()
-        return ProofToken(self.ain, ped.birth_record.to_dict(), ped.running_head, len(ped.history), time.time(), "test", challenge, sig)
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        sig = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
+        return ProofToken(self.ain, ped.birth_record.to_dict(), ped.running_head, len(ped.history), time.time(), "test", challenge, sig, sig_alg='ML-DSA-87', fmt_ver=1)
 
     def test_self_isolate(self):
         token = self._get_token()

@@ -81,7 +81,7 @@ class Verifier:
                     payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
 
             serialized_payload = canonical_json(payload_dict)
-            is_authentic = MLDSASigner.verify(pub_key, serialized_payload.encode('utf-8'), sig_bytes)
+            is_authentic = MLDSASigner.verify(sig_alg, pub_key, serialized_payload.encode('utf-8'), sig_bytes)
             
             if is_authentic and self._cache:
                 self._cache.put(agent_code, sig_bytes)
@@ -191,7 +191,7 @@ class Verifier:
 
             # Bind the head into the structured signed payload
             bound_payload = token.challenge_payload()
-            if not MLDSASigner.verify(agent_pub_bytes, bound_payload, sig_bytes_agent):
+            if not MLDSASigner.verify(token.sig_alg, agent_pub_bytes, bound_payload, sig_bytes_agent):
                 return VerificationResult(
                     status="HALT_HARD",
                     reason="Invalid FAST challenge signature. Agent cryptographic authentication failed.",

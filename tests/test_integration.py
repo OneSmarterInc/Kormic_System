@@ -87,12 +87,12 @@ class TestKormicCoreSystem(unittest.TestCase):
             history_length=len(pedigree.history),
             freshness_timestamp=time.time(),
             authority_reference="kormic.authority.local"
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
 
     def test_genuine_agent_verification_flow(self):
         """✓ Genuine Agent test."""
         # 1. Create agent birth
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
 
         # 2. Append events to history
@@ -128,7 +128,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_altered_birth_record(self):
         """✓ Altered Birth fails verification."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
 
         # Tamper with the birth record content in the packaged verification token
@@ -140,7 +140,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_altered_guardrails(self):
         """✓ Altered Guardrails fails verification."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
 
         token_data = self.generate_proof_token(pedigree)
@@ -152,7 +152,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_deleted_history_link(self):
         """✓ Deleted History links trigger integrity alerts on FULL validation."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
 
         pedigree = append_history_event(pedigree, "Event 1")
@@ -174,7 +174,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_rewritten_history(self):
         """✓ Rewritten History events fail FULL verification checks."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
 
         pedigree = append_history_event(pedigree, "Correct Event")
@@ -207,7 +207,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_caching_trust_speedup(self):
         """✓ Caching efficiency verification test."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
         token = self.generate_proof_token(pedigree)
 
@@ -228,7 +228,7 @@ class TestKormicCoreSystem(unittest.TestCase):
 
     def test_key_revocation(self):
         """✓ Key revocation triggers rejection of agents registered under the revoked epoch."""
-        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-44", self.key_custody)
+        birth = create_birth_record(self.valid_id, self.guardrails, self.epoch_num, "ML-DSA-87", self.key_custody)
         pedigree = initialize_pedigree(birth)
         token = self.generate_proof_token(pedigree)
 

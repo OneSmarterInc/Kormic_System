@@ -18,6 +18,7 @@ class MeshKorAgent:
         self.private_key = private_key
         self.current_head = current_head
         self.history_length = 0
+        self.sig_alg = birth_record.get("sig_alg", "ML-DSA-87")
         
     @classmethod
     def enroll(cls, authority: Authority, agent_type: str, entity_ref: str, 
@@ -26,7 +27,8 @@ class MeshKorAgent:
         Enrolls a new agent. Generates Post-Quantum keys locally, 
         registers the public key, and returns the agent instance.
         """
-        priv_key, pub_key = MLDSASigner.generate_keypair()
+        sig_alg = manifest.get("sig_alg", "ML-DSA-87")
+        priv_key, pub_key = MLDSASigner.generate_keypair(sig_alg)
         
         ain = authority.enroll_pubkey(
             agent_type, entity_ref, instance, real_world_id, manifest, pub_key.hex()
@@ -65,12 +67,12 @@ class MeshKorAgent:
             freshness_timestamp=time.time(),
             authority_reference="v1-local",
             challenge=nonce,
-            sig_alg="ML-DSA-44",
+            sig_alg=self.sig_alg,
             fmt_ver=1
         )
         
         # Sign the structured payload using the local private key
-        signature = MLDSASigner.sign(self.private_key, token.challenge_payload()).hex()
+        signature = MLDSASigner.sign(self.sig_alg, self.private_key, token.challenge_payload()).hex()
         
         # We must return a new ProofToken with the signature, as dataclasses are frozen
         return ProofToken(
@@ -82,7 +84,7 @@ class MeshKorAgent:
             authority_reference="v1-local",
             challenge=nonce,
             signature=signature,
-            sig_alg="ML-DSA-44",
+            sig_alg=self.sig_alg,
             fmt_ver=1
         )
 

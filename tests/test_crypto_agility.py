@@ -14,8 +14,8 @@ from kormic.models.pedigree import BirthRecord, Identity
 from kormic.models.verify import ProofToken
 from kormic.utils.serialize import canonical_json
 
-def build_harness():
-    kc = SoftwareKeyCustody()
+def build_harness(sig_alg='ML-DSA-87'):
+    kc = SoftwareKeyCustody(sig_alg)
     kc.generate_epoch_key(1)
     central = CentralRegistryAuthority(kc)
     registry = RegionalReplicaRegistry("test", kc.get_root_public_key(), local_only=True)
@@ -42,7 +42,7 @@ def test_snapshot_agility_downgrade():
     snap = central.snapshot()
     snap.sig_alg = "MD5"
     # Resign it with MD5 (we just sign it with whatever so it has a valid sig format)
-    snap.root_sig_hex = MLDSASigner.sign(kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
     # It must still be rejected because MD5 is not on the allowlist
     assert registry.apply_snapshot(snap) is False
 
@@ -50,7 +50,7 @@ def test_snapshot_agility_cutover():
     kc, central, registry, _ = build_harness()
     snap = central.snapshot()
     snap.sig_alg = ""
-    snap.root_sig_hex = MLDSASigner.sign(kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
     assert registry.apply_snapshot(snap) is False
 
 # =========================================================================
@@ -66,14 +66,14 @@ def test_birth_agility_positive():
         "created_at": 100.0,
         "guardrails": {},
         "epoch_number": 1,
-        "sig_alg": "ML-DSA-44",
+        "sig_alg": "ML-DSA-87",
         "fmt_ver": 1,
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign(kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -88,14 +88,14 @@ def test_birth_agility_tamper():
         "created_at": 100.0,
         "guardrails": {},
         "epoch_number": 1,
-        "sig_alg": "ML-DSA-44",
+        "sig_alg": "ML-DSA-87",
         "fmt_ver": 1,
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign(kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
     
     # Tamper with the alg after signing
     br_payload["sig_alg"] = "MD5"
@@ -121,7 +121,7 @@ def test_birth_agility_downgrade():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign(kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -144,7 +144,7 @@ def test_birth_agility_cutover():
         "artifact_digest": None
     }
     # Notice we didn't add sig_alg
-    sig = MLDSASigner.sign(kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -156,21 +156,21 @@ def test_birth_agility_cutover():
 # =========================================================================
 def create_valid_agent(kc, central, registry):
     registry.apply_snapshot(central.snapshot())
-    priv, pub = MLDSASigner.generate_keypair()
+    priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
     
     br_payload = {
         "identity": "KMC.BLD.test.1",
         "created_at": 100.0,
         "guardrails": {},
         "epoch_number": 1,
-        "sig_alg": "ML-DSA-44",
+        "sig_alg": "ML-DSA-87",
         "fmt_ver": 1,
         "agent_pub_key": pub.hex(),
         "derived_from": None,
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign(kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     return priv, br_payload
 
@@ -186,10 +186,10 @@ def test_token_agility_positive():
         freshness_timestamp=time.time(),
         authority_reference="test",
         challenge="nonce1",
-        sig_alg="ML-DSA-44",
+        sig_alg="ML-DSA-87",
         fmt_ver=1
     )
-    sig = MLDSASigner.sign(agent_priv, token.challenge_payload()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', agent_priv, token.challenge_payload()).hex()
     # We must explicitly set signature on the token instance for verification
     # Using object.__setattr__ as dataclass is frozen
     object.__setattr__(token, 'signature', sig)
@@ -212,7 +212,7 @@ def test_token_agility_tamper():
         sig_alg="ML-DSA-44",
         fmt_ver=1
     )
-    sig = MLDSASigner.sign(agent_priv, token.challenge_payload()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', agent_priv, token.challenge_payload()).hex()
     object.__setattr__(token, 'signature', sig)
     
     # Tamper with sig_alg post-signing
@@ -236,7 +236,7 @@ def test_token_agility_downgrade():
         sig_alg="MD5",
         fmt_ver=1
     )
-    sig = MLDSASigner.sign(agent_priv, token.challenge_payload()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', agent_priv, token.challenge_payload()).hex()
     object.__setattr__(token, 'signature', sig)
     
     res = verifier.verify_fast(token, mode="deployment")
@@ -255,10 +255,10 @@ def test_token_agility_cutover():
         freshness_timestamp=time.time(),
         authority_reference="test",
         challenge="nonce1",
-        sig_alg="",
+        sig_alg=None,
         fmt_ver=1
     )
-    sig = MLDSASigner.sign(agent_priv, token.challenge_payload()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', agent_priv, token.challenge_payload()).hex()
     object.__setattr__(token, 'signature', sig)
     
     res = verifier.verify_fast(token, mode="deployment")
@@ -271,21 +271,21 @@ def test_token_agility_cutover():
 def test_vendor_agility_positive():
     kc, central, registry, _ = build_harness()
     # Vendor enrollment is within CentralRegistryAuthority
-    priv, pub = MLDSASigner.generate_keypair()
+    priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
     challenge = os.urandom(16).hex()
-    proof = MLDSASigner.sign(priv, f"{challenge}:vendorX".encode('utf-8')).hex()
+    proof = MLDSASigner.sign('ML-DSA-87', priv, f"{challenge}:vendorX".encode('utf-8')).hex()
     
     # Needs a mock identity proof ref but the test doesn't check it deeply
     central.enroll_vendor("vendorX", pub.hex(), proof, "proof_ref", challenge)
     snap = central.snapshot()
     assert registry.apply_snapshot(snap) is True
-    assert snap.vendors["vendorX"]["sig_alg"] == "ML-DSA-44"
+    assert snap.vendors["vendorX"]["sig_alg"] == "ML-DSA-87"
 
 def test_vendor_agility_tamper():
     kc, central, registry, _ = build_harness()
-    priv, pub = MLDSASigner.generate_keypair()
+    priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
     challenge = os.urandom(16).hex()
-    proof = MLDSASigner.sign(priv, f"{challenge}:vendorX".encode('utf-8')).hex()
+    proof = MLDSASigner.sign('ML-DSA-87', priv, f"{challenge}:vendorX".encode('utf-8')).hex()
     central.enroll_vendor("vendorX", pub.hex(), proof, "proof_ref", challenge)
     snap = central.snapshot()
     
@@ -295,14 +295,14 @@ def test_vendor_agility_tamper():
 
 def test_vendor_agility_downgrade():
     kc, central, registry, _ = build_harness()
-    priv, pub = MLDSASigner.generate_keypair()
+    priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
     challenge = os.urandom(16).hex()
-    proof = MLDSASigner.sign(priv, f"{challenge}:vendorX".encode('utf-8')).hex()
+    proof = MLDSASigner.sign('ML-DSA-87', priv, f"{challenge}:vendorX".encode('utf-8')).hex()
     central.enroll_vendor("vendorX", pub.hex(), proof, "proof_ref", challenge)
     snap = central.snapshot()
     
     snap.vendors["vendorX"]["sig_alg"] = "MD5"
-    snap.root_sig_hex = MLDSASigner.sign(kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
     
     # Actually wait, apply_snapshot doesn't verify inner vendor objects yet for alg allowlist
     # in the head's instructions: "The vendor enrollment record already carries alg and fmt_ver, so bring it onto the same vocabulary and confirm those fields are inside the signed snapshot payload, which they are today through asdict, rather than added afterward."

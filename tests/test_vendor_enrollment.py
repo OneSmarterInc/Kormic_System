@@ -10,48 +10,48 @@ class TestVendorEnrollment:
         self.central = CentralRegistryAuthority(self.key_custody)
         self.replica = RegionalReplicaRegistry("test-region", self.key_custody._root_pub, self.central)
 
-        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair()
+        self.vendor_priv, self.vendor_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         self.vendor_pub_hex = self.vendor_pub.hex()
 
     def test_enroll_valid_possession_proof(self):
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof-domain-com", challenge_nonce)
         self.replica.apply_snapshot(self.central.snapshot())
         
         # Verify it succeeds and is visible in replica
-        assert self.replica.get_enrolled_vendor("acme") == self.vendor_pub_hex
+        assert self.replica.get_enrolled_vendor("acme").get('public_key') == self.vendor_pub_hex
 
     def test_enroll_bad_possession_proof_refused(self):
         challenge_nonce = "test-nonce-1"
         # Bad signature
-        possession_sig = MLDSASigner.sign(self.vendor_priv, b"wrong-challenge").hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, b"wrong-challenge").hex()
         
         with pytest.raises(ValueError, match="Proof of possession failed"):
             self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof", challenge_nonce)
 
     def test_rebind_squat_refused(self):
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         
-        attacker_priv, attacker_pub = MLDSASigner.generate_keypair()
+        attacker_priv, attacker_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         challenge_nonce2 = "test-nonce-2"
-        attacker_sig = MLDSASigner.sign(attacker_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
+        attacker_sig = MLDSASigner.sign('ML-DSA-87', attacker_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
         
         with pytest.raises(ValueError, match="has already been bound"):
             self.central.enroll_vendor("acme", attacker_pub.hex(), attacker_sig, "proof2", challenge_nonce2)
 
     def test_revoke_does_not_reopen_name(self):
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         
         self.central.revoke_vendor("acme")
         
         challenge_nonce2 = "test-nonce-2"
-        possession_sig2 = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
+        possession_sig2 = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
         
         with pytest.raises(ValueError, match="has already been bound"):
             self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig2, "proof2", challenge_nonce2)
@@ -65,7 +65,7 @@ class TestVendorEnrollment:
 
     def test_snapshot_provenance_tampering(self):
         challenge_nonce = "test-nonce-1"
-        possession_sig = MLDSASigner.sign(self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof1", challenge_nonce)
         
         snap = self.central.snapshot()
@@ -82,7 +82,7 @@ class TestVendorEnrollment:
 
     def test_possession_proof_cannot_be_replayed_under_new_name(self):
         nonce = "n1"
-        sig = MLDSASigner.sign(self.vendor_priv, f"{nonce}:acme".encode()).hex()
+        sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{nonce}:acme".encode()).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, sig, "id-doc", nonce)
         # same key, same captured proof, different name -> must be refused
         with pytest.raises(ValueError):

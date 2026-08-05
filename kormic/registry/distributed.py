@@ -43,8 +43,8 @@ class RegistrySnapshot:
     spent_nonces: List[str]
     checkpoint_indices: Dict[str, int]
     vendors: Dict[str, dict]  # entity_ref -> VendorEnrollment dict
-    sig_alg: str = "ML-DSA-44"
-    fmt_ver: int = 1
+    sig_alg: str = None
+    fmt_ver: int = None
     root_sig_hex: str = ""
 
     def payload(self) -> bytes:
@@ -111,7 +111,8 @@ class CentralRegistryAuthority:
         try:
             sig_bytes = bytes.fromhex(possession_proof)
             pub_bytes = bytes.fromhex(public_key)
-            if not MLDSASigner.verify(pub_bytes, signed, sig_bytes):
+            sig_alg = getattr(self.key_custody, "sig_alg", "ML-DSA-87")
+            if not MLDSASigner.verify(sig_alg, pub_bytes, signed, sig_bytes):
                 raise ValueError("Proof of possession failed.")
         except Exception as e:
             raise ValueError(f"Invalid proof of possession: {str(e)}")
@@ -127,7 +128,7 @@ class CentralRegistryAuthority:
             enrolled_at=time.time(),
             enrolled_by="central_authority",
             identity_proof_ref=identity_proof_ref,
-            sig_alg="ML-DSA-44",
+            sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
             fmt_ver=1,
             version=self.version
         )
@@ -158,11 +159,13 @@ class CentralRegistryAuthority:
             revoked_agents=list(self.revoked_agents),
             spent_nonces=list(self.spent_nonces.keys()),
             checkpoint_indices=self.checkpoint_indices.copy(),
-            vendors={k: asdict(v) for k, v in self.vendors.items()}
+            vendors={k: asdict(v) for k, v in self.vendors.items()},
+            sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
+            fmt_ver=1
         )
         # Sign the payload using the root private key
         root_priv = self.key_custody._root_priv
-        snap.root_sig_hex = MLDSASigner.sign(root_priv, snap.payload()).hex()
+        snap.root_sig_hex = MLDSASigner.sign(snap.sig_alg, root_priv, snap.payload()).hex()
         
         from kormic.logger import kormic_logger
         kormic_logger.info("SNAPSHOT_GENERATE", "CENTRAL", f"Signed Global Snapshot v{snap.version} (Contains {len(self.revoked_agents)} revocations, {len(self.spent_nonces)} nonces)")
@@ -246,7 +249,7 @@ class RegionalReplicaRegistry(RegistryReader):
             return False
 
         # 2. Verify Signature
-        if not MLDSASigner.verify(self.root_pub_key, snap.payload(), bytes.fromhex(snap.root_sig_hex)):
+        if not MLDSASigner.verify(snap.sig_alg, self.root_pub_key, snap.payload(), bytes.fromhex(snap.root_sig_hex)):
             kormic_logger.error("SNAPSHOT_PULL", f"REPLICA:{self.region}", "Snapshot rejected: Invalid Root Signature (Forgery detected!)")
             return False
             
@@ -315,5 +318,5 @@ class RegionalReplicaRegistry(RegistryReader):
             return None
         vendor_dict = self.snapshot.vendors.get(entity_ref)
         if vendor_dict and vendor_dict.get('status') == VendorStatus.ACTIVE:
-            return vendor_dict.get('public_key')
+            return vendor_dict
         return None

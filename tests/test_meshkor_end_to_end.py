@@ -40,7 +40,7 @@ class TestMeshKorEndToEnd(unittest.TestCase):
         ))
 
         # Agent Keypair
-        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair()
+        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
 
     def tearDown(self):
         self.store.close() if hasattr(self.store, 'close') else None
@@ -56,14 +56,14 @@ class TestMeshKorEndToEnd(unittest.TestCase):
         ped_dict = self.store.get(ain)
         ped = Pedigree.from_dict(ped_dict)
         challenge = os.urandom(16).hex()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        sig = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        sig = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         return ProofToken(
             agent_code=ain, birth_record=ped.birth_record.to_dict(),
             current_head=ped.running_head, history_length=len(ped.history),
             freshness_timestamp=time.time(), authority_reference="e2e",
             challenge=challenge, signature=sig
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
 
     def test_full_lifecycle_success(self):
         # 1. Birth

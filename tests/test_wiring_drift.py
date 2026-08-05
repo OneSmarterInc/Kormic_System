@@ -44,7 +44,7 @@ class TestDriftWiring(unittest.TestCase):
         self.monitor = BehaviorMonitor(config)
         
         # 1. Agent Keypair
-        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair()
+        self.agent_priv, self.agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         
         # 2. Manifest
         self.manifest = {
@@ -81,8 +81,8 @@ class TestDriftWiring(unittest.TestCase):
         ped_dict = self.store.get(self.ain)
         ped = Pedigree.from_dict(ped_dict)
         challenge = os.urandom(16).hex()
-        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-44'}, sort_keys=True).encode('utf-8')
-        signature = MLDSASigner.sign(self.agent_priv, payload).hex()
+        import json; payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+        signature = MLDSASigner.sign('ML-DSA-87', self.agent_priv, payload).hex()
         
         return ProofToken(
             agent_code=self.ain,
@@ -93,7 +93,7 @@ class TestDriftWiring(unittest.TestCase):
             authority_reference="test",
             challenge=challenge,
             signature=signature
-        )
+        , sig_alg='ML-DSA-87', fmt_ver=1)
 
     def test_wiring_drift_triggers_halt(self):
         token = self._get_valid_token()
