@@ -138,6 +138,7 @@ class AgentManager:
             guardrails=guardrails,
             epoch_number=self.default_epoch,
             sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
+            hash_alg=getattr(self.key_custody, "hash_alg", "SHA-256"),
             key_custody=self.key_custody,
             agent_pub_key=agent_pub_key,
             derived_from=derived_from,

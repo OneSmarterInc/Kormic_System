@@ -9,6 +9,7 @@ class BirthRecord:
     guardrails: Dict[str, Any]
     epoch_number: int
     sig_alg: str
+    hash_alg: str
     signature: bytes
     fmt_ver: int = 1
     agent_pub_key: str = ""
@@ -26,6 +27,7 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
+            "hash_alg": self.hash_alg,
             "fmt_ver": self.fmt_ver,
             "agent_pub_key": self.agent_pub_key,
             "derived_from": self.derived_from,
@@ -47,6 +49,7 @@ class BirthRecord:
             guardrails=data["guardrails"],
             epoch_number=data["epoch_number"],
             sig_alg=data["sig_alg"],
+            hash_alg=data["hash_alg"],
             fmt_ver=data.get("fmt_ver", 1),
             agent_pub_key=data.get("agent_pub_key", ""),
             derived_from=data.get("derived_from"),
@@ -65,6 +68,7 @@ class BirthRecord:
             "guardrails": self.guardrails,
             "epoch_number": self.epoch_number,
             "sig_alg": self.sig_alg,
+            "hash_alg": self.hash_alg,
             "fmt_ver": self.fmt_ver,
             "agent_pub_key": self.agent_pub_key,
             "derived_from": self.derived_from,

@@ -5,7 +5,7 @@ from kormic.models.verify import ProofToken, VerificationResult
 from kormic.models.pedigree import BirthRecord, HistoryLink
 from kormic.verify.cache import TrustCache
 from kormic.crypto.algorithms import MLDSASigner
-from kormic.utils.serialize import canonical_json, sha256_hex
+from kormic.utils.serialize import canonical_json, sha256_hex, hash_hex
 from kormic.utils.exceptions import VerificationError, PedigreeIntegrityError
 import os
 
@@ -56,6 +56,16 @@ class Verifier:
             except ValueError as e:
                 return VerificationResult("HALT_HARD", str(e), agent_code, epoch_n)
 
+            hash_alg = birth_data.get("hash_alg")
+            if not hash_alg:
+                return VerificationResult("HALT_HARD", "Missing hash_alg field. Hard cutover enforced.", agent_code, epoch_n)
+            
+            from kormic.crypto.agility import require_allowed_hash
+            try:
+                require_allowed_hash(hash_alg)
+            except ValueError as e:
+                return VerificationResult("HALT_HARD", str(e), agent_code, epoch_n)
+
             # Reconstruct payload
             payload_dict = {
                 "identity": birth_data.get("identity"),
@@ -63,6 +73,7 @@ class Verifier:
                 "guardrails": birth_data.get("guardrails"),
                 "epoch_number": birth_data.get("epoch_number"),
                 "sig_alg": sig_alg,
+                "hash_alg": hash_alg,
                 "fmt_ver": birth_data.get("fmt_ver"),
                 "agent_pub_key": birth_data.get("agent_pub_key", "")
             }
@@ -224,6 +235,8 @@ class Verifier:
         agent_code = token.agent_code
         birth_data = token.birth_record
 
+        hash_alg = birth_data.get("hash_alg")
+        
         # Recompute base birth hash anchor
         payload_dict = {
             "identity": birth_data.get("identity"),
@@ -231,6 +244,7 @@ class Verifier:
             "guardrails": birth_data.get("guardrails"),
             "epoch_number": birth_data.get("epoch_number"),
             "sig_alg": birth_data.get("sig_alg"),
+            "hash_alg": hash_alg,
             "fmt_ver": birth_data.get("fmt_ver"),
             "agent_pub_key": birth_data.get("agent_pub_key", "")
         }
@@ -245,7 +259,7 @@ class Verifier:
             if birth_data.get("allowed_egress") is not None:
                 payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
             
-        birth_hash = sha256_hex(canonical_json(payload_dict))
+        birth_hash = hash_hex(hash_alg, canonical_json(payload_dict))
 
         # Check history length match with token expectation
         if len(history_links) != token.history_length:
@@ -257,7 +271,7 @@ class Verifier:
 
         # Walk the chain confirming linkages and hashes
         expected_prev_hash = birth_hash
-        calculated_head = sha256_hex(birth_hash)
+        calculated_head = hash_hex(hash_alg, birth_hash)
 
         for idx, link in enumerate(history_links):
             seq = idx + 1
@@ -285,7 +299,7 @@ class Verifier:
                 "timestamp": link.timestamp,
                 "prev_hash": link.prev_hash
             }
-            recomputed_hash = sha256_hex(canonical_json(link_payload))
+            recomputed_hash = hash_hex(hash_alg, canonical_json(link_payload))
             if link.this_hash != recomputed_hash:
                 return VerificationResult(
                     status="HALT_HARD",
@@ -302,7 +316,7 @@ class Verifier:
                 "event": link.event,
                 "timestamp": link.timestamp
             }
-            calculated_head = sha256_hex(calculated_head + canonical_json(event_payload))
+            calculated_head = hash_hex(hash_alg, calculated_head + canonical_json(event_payload))
 
         # Finally check head matches the token's current head
         if calculated_head != token.current_head:

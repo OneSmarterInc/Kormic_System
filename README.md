@@ -28,8 +28,9 @@ This system currently implements the **Phase 1 (Core Pedigree)** and **Phase 2 (
 
 ### 4. Cryptographic Key Custody & Crypto-Agility (Dev/Software Mode)
 - **Epoch Keys:** Uses a root-and-epoch hierarchy for key rotation and revocation.
-- **Crypto-Agility:** The `MLDSASigner` is algorithm-parametric. Signatures explicitly declare their algorithm (e.g., `sig_alg`) and format (`fmt_ver`), allowing the verifier to dynamically dispatch validation.
+- **Crypto-Agility:** The system is fully algorithm-parametric for both signatures and hashing. Signatures explicitly declare their algorithm (`sig_alg`), and the history chain hash algorithm is declared at birth (`hash_alg`). The `MLDSASigner` and hash serializers dispatch validation dynamically, structurally preventing downgrade attacks while enabling safe migration to new standards.
 - **Post-Quantum Signatures:** Upgraded to NIST Level 5 (`ML-DSA-87`) as the default for all root, epoch, and birth record signatures.
+- **Agile Hash Strategy:** The system defaults to `SHA-256` for constant-size history chain link hashing and running head calculations, but is fully agile and allows allowlisted standards like `SHA3-256`.
 - *Note: All keys currently use software-based implementations and are strictly marked with `# DEV_KEY_NOT_PRODUCTION` for safe testing prior to Phase 3 hardware isolation.*
 
 ---

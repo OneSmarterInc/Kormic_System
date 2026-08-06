@@ -19,6 +19,7 @@ class TestEncryptedRecoveryTwin(unittest.TestCase):
             guardrails={},
             epoch_number=1,
             sig_alg="ML-DSA-44",
+            hash_alg="SHA-256",
             signature=b"fakesig"
         )
         self.original_pedigree = Pedigree(

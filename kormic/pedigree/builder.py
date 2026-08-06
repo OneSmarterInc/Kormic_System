@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from kormic.models.identity import Identity
 from kormic.models.pedigree import BirthRecord, HistoryLink, Pedigree
 from kormic.interfaces.keys import KeyCustody
-from kormic.utils.serialize import canonical_json, sha256_hex
+from kormic.utils.serialize import canonical_json, hash_hex, sha256_hex
 from kormic.utils.exceptions import PedigreeIntegrityError
 
 def create_birth_record(
@@ -12,6 +12,7 @@ def create_birth_record(
     epoch_number: int,
     sig_alg: str,
     key_custody: KeyCustody,
+    hash_alg: str = "SHA-256",
     agent_pub_key: str = "",
     created_at: float = None,
     derived_from: Optional[str] = None,
@@ -34,6 +35,7 @@ def create_birth_record(
         "guardrails": guardrails,
         "epoch_number": epoch_number,
         "sig_alg": sig_alg,
+        "hash_alg": hash_alg,
         "fmt_ver": 1,
         "agent_pub_key": agent_pub_key,
         "derived_from": derived_from,
@@ -58,6 +60,7 @@ def create_birth_record(
         guardrails=guardrails,
         epoch_number=epoch_number,
         sig_alg=sig_alg,
+        hash_alg=hash_alg,
         fmt_ver=1,
         agent_pub_key=agent_pub_key,
         signature=signature,
@@ -73,9 +76,10 @@ def initialize_pedigree(birth_record: BirthRecord) -> Pedigree:
     Initializes a Pedigree wrapper and anchors the running head to the birth record hash.
     head_0 = SHA256(birth_hash)
     """
+    hash_alg = birth_record.hash_alg
     serialized_payload = canonical_json(birth_record.to_payload_dict())
-    birth_hash = sha256_hex(serialized_payload)
-    head_0 = sha256_hex(birth_hash)
+    birth_hash = hash_hex(hash_alg, serialized_payload)
+    head_0 = hash_hex(hash_alg, birth_hash)
     
     return Pedigree(
         birth_record=birth_record,
@@ -97,10 +101,12 @@ def append_history_event(
 
     seq = len(pedigree.history) + 1
     
+    hash_alg = pedigree.birth_record.hash_alg
+    
     # Compute previous hash anchorage
     if len(pedigree.history) == 0:
         birth_serialized = canonical_json(pedigree.birth_record.to_payload_dict())
-        prev_hash = sha256_hex(birth_serialized)
+        prev_hash = hash_hex(hash_alg, birth_serialized)
     else:
         prev_hash = pedigree.history[-1].this_hash
 
@@ -111,7 +117,7 @@ def append_history_event(
         "timestamp": timestamp,
         "prev_hash": prev_hash
     }
-    this_hash = sha256_hex(canonical_json(link_payload))
+    this_hash = hash_hex(hash_alg, canonical_json(link_payload))
     new_link = HistoryLink(
         seq=seq,
         event=event,
@@ -128,7 +134,7 @@ def append_history_event(
         "timestamp": timestamp
     }
     head_input = pedigree.running_head + canonical_json(event_payload)
-    new_head = sha256_hex(head_input)
+    new_head = hash_hex(hash_alg, head_input)
 
     # Construct new immutable Pedigree
     updated_history = list(pedigree.history) + [new_link]

@@ -29,8 +29,9 @@ class SoftwareKeyCustody(KeyCustody):
     Software implementation of KeyCustody for Phase 1.
     All keys are held in memory. Real HSM/threshold isolation is swapped in Phase 3.
     """
-    def __init__(self, sig_alg: str = "ML-DSA-87"):
+    def __init__(self, sig_alg: str = "ML-DSA-87", hash_alg: str = "SHA-256"):
         self.sig_alg = sig_alg
+        self.hash_alg = hash_alg
         # DEV_KEY_NOT_PRODUCTION
         # Root key pair initialization
         self._root_priv, self._root_pub = MLDSASigner.generate_keypair(self.sig_alg)
