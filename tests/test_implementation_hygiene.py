@@ -11,8 +11,9 @@ def test_no_stdlib_random_in_crypto_and_token():
     repo_root = Path(__file__).parent.parent
     paths_to_check = [
         repo_root / "kormic" / "crypto",
+        repo_root / "kormic" / "verify",
+        repo_root / "kormic" / "runtime",
         repo_root / "kormic" / "models" / "verify.py",
-        repo_root / "kormic" / "models" / "verify",
         repo_root / "meshkor"
     ]
     
