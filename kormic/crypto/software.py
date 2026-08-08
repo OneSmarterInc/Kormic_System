@@ -30,6 +30,12 @@ class SoftwareKeyCustody(KeyCustody):
     All keys are held in memory. Real HSM/threshold isolation is swapped in Phase 3.
     """
     def __init__(self, sig_alg: str = "ML-DSA-87", hash_alg: str = "SHA-256"):
+        if os.environ.get("KORMIC_DEPLOYMENT_MODE", "").lower() == "production":
+            raise CryptographicError(
+                "DEV_KEY_NOT_PRODUCTION: SoftwareKeyCustody cannot be used in production mode. "
+                "A real key custody, hardware-backed or threshold, is required."
+            )
+            
         self.sig_alg = sig_alg
         self.hash_alg = hash_alg
         # DEV_KEY_NOT_PRODUCTION
