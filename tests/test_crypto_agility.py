@@ -289,6 +289,16 @@ def test_vendor_agility_positive():
 def test_vendor_agility_tamper():
     kc, central, registry, _ = build_harness()
     priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
+    challenge = os.urandom(16).hex()
+    proof = MLDSASigner.sign('ML-DSA-87', priv, f"{challenge}:vendorX".encode('utf-8')).hex()
+    central.enroll_vendor("vendorX", pub.hex(), proof, "proof_ref", challenge)
+    snap = central.snapshot()
+    
+    # Tamper with the vendor field inside the snapshot without re-signing
+    snap.vendors["vendorX"]["sig_alg"] = "MD5"
+    
+    # It must fail because the root signature over the payload no longer matches
+    assert registry.apply_snapshot(snap) is False
 def test_hash_agility_tamper():
     kc, central, registry, verifier = build_harness()
     agent_priv, br_dict = create_valid_agent(kc, central, registry)
@@ -502,6 +512,9 @@ def test_hash_agility_mismatch():
     ALLOWED_HASH_ALGS.remove("SHA3-256")
 
 def test_vendor_agility_downgrade():
+    from kormic.manager import AgentManager
+    from kormic.storage.sqlite import SQLiteRecordStore
+    
     kc, central, registry, _ = build_harness()
     priv, pub = MLDSASigner.generate_keypair('ML-DSA-87')
     challenge = os.urandom(16).hex()
@@ -509,10 +522,29 @@ def test_vendor_agility_downgrade():
     central.enroll_vendor("vendorX", pub.hex(), proof, "proof_ref", challenge)
     snap = central.snapshot()
     
+    # Stamp the vendor record with an off-allowlist algorithm
     snap.vendors["vendorX"]["sig_alg"] = "MD5"
+    # Re-sign the snapshot so the replica accepts it
     snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
+    assert registry.apply_snapshot(snap) is True
     
-    # Actually wait, apply_snapshot doesn't verify inner vendor objects yet for alg allowlist
-    # in the head's instructions: "The vendor enrollment record already carries alg and fmt_ver, so bring it onto the same vocabulary and confirm those fields are inside the signed snapshot payload, which they are today through asdict, rather than added afterward."
-    # Wait, does the Verifier or Replica check the vendor's sig_alg when using the vendor key?
-    pass
+    # Now try to register a BAIN
+    store = SQLiteRecordStore(":memory:")
+    manager = AgentManager(store, kc, registry_reader=registry)
+    
+    artifact_digest = "digest123"
+    payload = ("vendorX" + "1" + artifact_digest).encode('utf-8')
+    artifact_sig = MLDSASigner.sign('ML-DSA-87', priv, payload).hex()
+    
+    # It should be refused by require_allowed_algorithm since the vendor's sig_alg is MD5
+    with pytest.raises(ValueError, match="is not on the ALLOWLIST"):
+        manager.register_new_agent(
+            agent_type="BLD",
+            entity_ref="vendorX",
+            instance_num="1",
+            real_world_id="realid",
+            guardrails={},
+            artifact_signature=artifact_sig,
+            vendor_pub_key=pub.hex(),
+            artifact_digest=artifact_digest
+        )

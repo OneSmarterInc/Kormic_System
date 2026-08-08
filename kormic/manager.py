@@ -110,7 +110,9 @@ class AgentManager:
             try:
                 sig_bytes = bytes.fromhex(artifact_signature)
                 pub_bytes = bytes.fromhex(vendor_pub_key)
-                vendor_alg = enrolled_vendor.get('sig_alg', 'ML-DSA-44')
+                from kormic.crypto.agility import require_allowed_algorithm
+                vendor_alg = enrolled_vendor.get('sig_alg')
+                require_allowed_algorithm(vendor_alg)
                 if not MLDSASigner.verify(vendor_alg, pub_bytes, payload, sig_bytes):
                     raise ValueError("Artifact signature verification failed.")
             except Exception as e:
