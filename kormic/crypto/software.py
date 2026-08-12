@@ -48,7 +48,7 @@ class SoftwareKeyCustody(KeyCustody):
         # Revoked epochs set
         self._revoked_epochs = set()
 
-    def generate_epoch_key(self, epoch_n: int) -> Tuple[bytes, bytes]:
+    def generate_epoch_key(self, epoch_n: int) -> None:
         """
         Generates and signs a certificate for a new epoch using the Root key.
         Satisfies Section 5.5 & 6.
@@ -61,7 +61,6 @@ class SoftwareKeyCustody(KeyCustody):
         cert_payload = f"EPOCH_CERTIFICATE:{epoch_n}:".encode('utf-8') + pub
         epoch_certificate = MLDSASigner.sign(self.sig_alg, self._root_priv, cert_payload)
         self._epoch_certificates[epoch_n] = epoch_certificate
-        return priv, pub
 
     def get_epoch_certificate(self, epoch_n: int) -> bytes:
         """Retrieves root-signed certificate for epoch verification key validation."""
@@ -103,6 +102,17 @@ class SoftwareKeyCustody(KeyCustody):
 
     def get_root_public_key(self) -> bytes:
         return self._root_pub
+
+    def sign_root(self, payload: bytes) -> bytes:
+        """Signs a payload using the master root private key (e.g., for registry snapshots)."""
+        # DEV_KEY_NOT_PRODUCTION
+        return MLDSASigner.sign(self.sig_alg, self._root_priv, payload)
+
+    def get_all_epoch_public_keys(self) -> Dict[int, bytes]:
+        return {epoch_n: pub for epoch_n, (_, pub) in self._epoch_keys.items()}
+
+    def get_revoked_epochs(self) -> set:
+        return set(self._revoked_epochs)
 
     # Shamir Secret Sharing polynomial interpolation wrapper (Galois Field GF(256))
     # Satisfies Section 8.3 (k-of-n Shamir threshold split logic)

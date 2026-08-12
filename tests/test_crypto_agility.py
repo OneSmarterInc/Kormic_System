@@ -42,7 +42,7 @@ def test_snapshot_agility_downgrade():
     snap = central.snapshot()
     snap.sig_alg = "MD5"
     # Resign it with MD5 (we just sign it with whatever so it has a valid sig format)
-    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = kc.sign_root(snap.payload()).hex()
     # It must still be rejected because MD5 is not on the allowlist
     assert registry.apply_snapshot(snap) is False
 
@@ -50,7 +50,7 @@ def test_snapshot_agility_cutover():
     kc, central, registry, _ = build_harness()
     snap = central.snapshot()
     snap.sig_alg = ""
-    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = kc.sign_root(snap.payload()).hex()
     assert registry.apply_snapshot(snap) is False
 
 # =========================================================================
@@ -58,7 +58,7 @@ def test_snapshot_agility_cutover():
 # =========================================================================
 def test_birth_agility_positive():
     kc, central, registry, verifier = build_harness()
-    pub = kc._epoch_keys[1][1]
+    pub = kc.epoch_public(1)
     registry.apply_snapshot(central.snapshot())
     
     br_payload = {
@@ -74,7 +74,7 @@ def test_birth_agility_positive():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -97,7 +97,7 @@ def test_birth_agility_tamper():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     
     # Tamper with the alg after signing
     br_payload["sig_alg"] = "MD5"
@@ -124,7 +124,7 @@ def test_birth_agility_downgrade():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -148,7 +148,7 @@ def test_birth_agility_cutover():
         "artifact_digest": None
     }
     # Notice we didn't add sig_alg
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -175,7 +175,7 @@ def create_valid_agent(kc, central, registry):
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
     return priv, br_payload
 
@@ -340,7 +340,7 @@ def test_hash_agility_downgrade():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
 
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -363,7 +363,7 @@ def test_hash_agility_cutover():
         "vendor_pub_key": None,
         "artifact_digest": None
     }
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_payload).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
 
     res = verifier._verify_single_birth("KMC.BLD.test.1", br_payload)
@@ -404,7 +404,7 @@ def test_hash_agility_link_tamper():
         sig_alg="ML-DSA-87",
         fmt_ver=1
     )
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], token.challenge_payload()).hex()
+    sig = kc.sign_birth(1, token.challenge_payload()).hex()
     object.__setattr__(token, 'signature', sig)
     
     # Should fail due to link tamper under agile hash
@@ -438,7 +438,7 @@ def test_hash_agility_dispatch():
         sig_alg="ML-DSA-87",
         fmt_ver=1
     )
-    sig1 = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], token1.challenge_payload()).hex()
+    sig1 = kc.sign_birth(1, token1.challenge_payload()).hex()
     object.__setattr__(token1, 'signature', sig1)
     res1 = verifier.verify_full(token1, ped1.history)
     assert res1.status == "PASS"
@@ -460,7 +460,7 @@ def test_hash_agility_dispatch():
         sig_alg="ML-DSA-87",
         fmt_ver=1
     )
-    sig2 = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], token2.challenge_payload()).hex()
+    sig2 = kc.sign_birth(1, token2.challenge_payload()).hex()
     object.__setattr__(token2, 'signature', sig2)
     res2 = verifier.verify_full(token2, ped2.history)
     assert res2.status == "PASS"
@@ -488,7 +488,7 @@ def test_hash_agility_mismatch():
     # We can just construct a valid signature with the mismatched label.
     br_dict = pedigree.birth_record.to_dict()
     br_dict["hash_alg"] = "SHA3-256"
-    sig = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], canonical_json(br_dict).encode()).hex()
+    sig = kc.sign_birth(1, canonical_json(br_dict).encode()).hex()
     br_dict["signature"] = sig
     
     token = ProofToken(
@@ -502,7 +502,7 @@ def test_hash_agility_mismatch():
         sig_alg="ML-DSA-87",
         fmt_ver=1
     )
-    sig_agent = MLDSASigner.sign('ML-DSA-87', kc._epoch_keys[1][0], token.challenge_payload()).hex()
+    sig_agent = kc.sign_birth(1, token.challenge_payload()).hex()
     object.__setattr__(token, 'signature', sig_agent)
     
     # Verification should fail FULL check due to hash mismatch
@@ -525,7 +525,7 @@ def test_vendor_agility_downgrade():
     # Stamp the vendor record with an off-allowlist algorithm
     snap.vendors["vendorX"]["sig_alg"] = "MD5"
     # Re-sign the snapshot so the replica accepts it
-    snap.root_sig_hex = MLDSASigner.sign('ML-DSA-87', kc._root_priv, snap.payload()).hex()
+    snap.root_sig_hex = kc.sign_root(snap.payload()).hex()
     assert registry.apply_snapshot(snap) is True
     
     # Now try to register a BAIN

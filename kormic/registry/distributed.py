@@ -146,10 +146,10 @@ class CentralRegistryAuthority:
         self._purge_old_nonces()
         # Collect all active and revoked epochs from key custody
         epochs_dict = {}
-        for epoch_n, (_, pub) in self.key_custody._epoch_keys.items():
+        for epoch_n, pub in self.key_custody.get_all_epoch_public_keys().items():
             epochs_dict[str(epoch_n)] = pub.hex()
 
-        revoked_epochs = list(self.key_custody._revoked_epochs)
+        revoked_epochs = list(self.key_custody.get_revoked_epochs())
 
         snap = RegistrySnapshot(
             version=self.version,
@@ -163,9 +163,8 @@ class CentralRegistryAuthority:
             sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
             fmt_ver=1
         )
-        # Sign the payload using the root private key
-        root_priv = self.key_custody._root_priv
-        snap.root_sig_hex = MLDSASigner.sign(snap.sig_alg, root_priv, snap.payload()).hex()
+        # Sign the payload using the root private key via the custody interface
+        snap.root_sig_hex = self.key_custody.sign_root(snap.payload()).hex()
         
         from kormic.logger import kormic_logger
         kormic_logger.info("SNAPSHOT_GENERATE", "CENTRAL", f"Signed Global Snapshot v{snap.version} (Contains {len(self.revoked_agents)} revocations, {len(self.spent_nonces)} nonces)")

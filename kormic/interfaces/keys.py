@@ -19,6 +19,42 @@ class KeyCustody(Protocol):
         """Signs the birth record payload using the designated epoch private key."""
         ...
 
+    def sign_root(self, payload: bytes) -> bytes:
+        """Signs a payload using the master root private key (e.g., for registry snapshots)."""
+        ...
+
+    def get_root_public_key(self) -> bytes:
+        """Returns the master root public verification key."""
+        ...
+
+    def generate_epoch_key(self, epoch_n: int) -> None:
+        """Generates a new epoch keypair and certifies it with the root key."""
+        ...
+
+    def get_epoch_certificate(self, epoch_n: int) -> bytes:
+        """Retrieves root-signed certificate for epoch verification key validation."""
+        ...
+
+    def verify_epoch_certificate(self, epoch_n: int, public_key: bytes) -> bool:
+        """Verifies if the public key for an epoch is certified by the Root key."""
+        ...
+
+    def revoke_epoch(self, epoch_n: int) -> None:
+        """Revokes an epoch, rendering keys and agents registered under it invalid."""
+        ...
+
+    def is_epoch_revoked(self, epoch_n: int) -> bool:
+        """Returns whether an epoch is revoked."""
+        ...
+
+    def get_all_epoch_public_keys(self) -> Dict[int, bytes]:
+        """Returns all epoch public keys."""
+        ...
+
+    def get_revoked_epochs(self) -> set:
+        """Returns the set of all revoked epochs."""
+        ...
+
     def epoch_public(self, epoch_n: int) -> bytes:
         """Returns the public verification key for the specified epoch."""
         ...
