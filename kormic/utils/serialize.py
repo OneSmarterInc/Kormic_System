@@ -17,15 +17,17 @@ def canonical_json(data: Any) -> str:
     """
     return json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
 
-def hash_hex(hash_alg: str, data: str) -> str:
+def hash_hex(hash_alg: str, data) -> str:
     """
-    Helper to return the hex digest of a string payload using an agile hash algorithm.
+    Helper to return the hex digest of a payload using an agile hash algorithm.
     """
     require_allowed_hash(hash_alg)
     suite = _HASH_SUITES.get(hash_alg)
     if suite is None:
         raise ValueError(f"Hash Algorithm {hash_alg} is not implemented.")
-    return suite(data.encode('utf-8')).hexdigest()
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    return suite(data).hexdigest()
 
 def sha256_hex(data: str) -> str:
     """Helper to return the SHA256 hex digest of a string payload."""

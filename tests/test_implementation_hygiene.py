@@ -1,5 +1,6 @@
 import ast
 import os
+import pytest
 from pathlib import Path
 
 def test_no_stdlib_random_in_crypto_and_token():

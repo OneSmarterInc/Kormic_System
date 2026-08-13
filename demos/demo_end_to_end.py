@@ -108,7 +108,7 @@ def run_demo():
         
         # Hacker signs the fake head
         payload = (fake_head + hacker_challenge).encode('utf-8')
-        forged_sig = MLDSASigner.sign(agent.private_key, payload).hex()
+        forged_sig = MLDSASigner.sign(agent.sig_alg, agent.private_key, payload).hex()
         
         forged_token = dataclasses.replace(
             agent.mint_token(hacker_challenge),

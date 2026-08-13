@@ -30,17 +30,25 @@ def _get_valid_token(store, ain, agent_priv):
     ped_dict = store.get(ain)
     ped = Pedigree.from_dict(ped_dict)
     challenge = os.urandom(16).hex()
-    payload = (ped.running_head + challenge).encode('utf-8')
-    signature = MLDSASigner.sign(agent_priv, payload).hex()
+    import json
+    payload = json.dumps({
+        "current_head": ped.running_head,
+        "challenge": challenge,
+        "sig_alg": 'ML-DSA-87',
+        "fmt_ver": 1
+    }, sort_keys=True).encode('utf-8')
+    signature = MLDSASigner.sign('ML-DSA-87', agent_priv, payload).hex()
     return ProofToken(
         agent_code=ain,
         birth_record=ped.birth_record.to_dict(),
         current_head=ped.running_head,
         history_length=len(ped.history),
         freshness_timestamp=time.time(),
-        authority_reference="test",
+        authority_reference="demo_central",
         challenge=challenge,
-        signature=signature
+        signature=signature,
+        sig_alg='ML-DSA-87',
+        fmt_ver=1
     )
 
 def run_demo():
@@ -70,7 +78,7 @@ def run_demo():
         credential_scopes=["faq:answer"],
         blast_radius="agentA's own FAQ + own session only"
     )
-    agentA_priv, agentA_pub = MLDSASigner.generate_keypair()
+    agentA_priv, agentA_pub = MLDSASigner.generate_keypair('ML-DSA-87')
     ainA, _ = manager.register_new_agent("CMP", "supportbotA", "0001", "idA", mA, agent_pub_key=agentA_pub.hex())
 
     # 3. Agent B (Billing Bot)
@@ -81,7 +89,7 @@ def run_demo():
         blast_radius="agentB billing, refunds allowed (irreversible)",
         irreversible_scopes=["billing:refund"]
     )
-    agentB_priv, agentB_pub = MLDSASigner.generate_keypair()
+    agentB_priv, agentB_pub = MLDSASigner.generate_keypair('ML-DSA-87')
     ainB, _ = manager.register_new_agent("CMP", "billingbotB", "0001", "idB", mB, agent_pub_key=agentB_pub.hex())
 
     # Distribute initial global snapshot
@@ -105,6 +113,10 @@ def run_demo():
             controllerA.call_endpoint("convo://agentB/session")  # B's data
         except PermissionError as e:
             print(f"  {e}")
+            if "Invalid FAST challenge signature" in str(e):
+                print(f"DEBUG: payload={tokenA.challenge_payload()}")
+                print(f"DEBUG: signature={tokenA.signature}")
+                print(f"DEBUG: pubkey={tokenA.birth_record.get('agent_pub_key')}")
         print("  -> C1 SUCCESS: A's manifest never named B's session. Shared runtime, but no shared authority.")
         print(f"  -> DRIFT DETECTED: Agent A was instantly globally revoked by Behavior Monitor. (Revoked? {ainA in central.revoked_agents})")
 
@@ -132,7 +144,7 @@ def run_demo():
         
         # Let's create Agent X without irreversible flags
         mX = make_manifest(["x"], ["y"], ["billing:refund"], "loose bot")
-        agentX_priv, agentX_pub = MLDSASigner.generate_keypair()
+        agentX_priv, agentX_pub = MLDSASigner.generate_keypair('ML-DSA-87')
         ainX, _ = manager.register_new_agent("CMP", "looseX", "0001", "idX", mX, agent_pub_key=agentX_pub.hex())
         replica.apply_snapshot(central.snapshot()) # sync registry
 
@@ -157,7 +169,9 @@ def run_demo():
             freshness_timestamp=tokenX_stolen.freshness_timestamp,
             authority_reference=tokenX_stolen.authority_reference,
             challenge=tokenX_stolen.challenge,
-            signature=tokenX_stolen.signature # Hacker reuses signature because they don't have private key
+            signature=tokenX_stolen.signature, # Hacker reuses signature because they don't have private key
+            sig_alg=tokenX_stolen.sig_alg,
+            fmt_ver=tokenX_stolen.fmt_ver
         )
         try:
             Sandbox(verifier, tokenX_stolen_forged)
