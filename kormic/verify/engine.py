@@ -90,6 +90,8 @@ class Verifier:
                     payload_dict["read_scopes"] = birth_data.get("read_scopes")
                 if birth_data.get("allowed_egress") is not None:
                     payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
+                if birth_data.get("approval_assertion") is not None:
+                    payload_dict["approval_assertion"] = birth_data.get("approval_assertion")
 
             serialized_payload = canonical_json(payload_dict)
             is_authentic = MLDSASigner.verify(sig_alg, pub_key, serialized_payload.encode('utf-8'), sig_bytes)
@@ -258,6 +260,8 @@ class Verifier:
                 payload_dict["read_scopes"] = birth_data.get("read_scopes")
             if birth_data.get("allowed_egress") is not None:
                 payload_dict["allowed_egress"] = birth_data.get("allowed_egress")
+            if birth_data.get("approval_assertion") is not None:
+                payload_dict["approval_assertion"] = birth_data.get("approval_assertion")
             
         birth_hash = hash_hex(hash_alg, canonical_json(payload_dict))
 

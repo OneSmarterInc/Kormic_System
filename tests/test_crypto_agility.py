@@ -530,13 +530,24 @@ def test_vendor_agility_downgrade():
     
     # Now try to register a BAIN
     store = SQLiteRecordStore(":memory:")
-    manager = AgentManager(store, kc, registry_reader=registry)
+    manager = AgentManager(kc, store, registry_reader=registry)
     
     artifact_digest = "digest123"
     payload = ("vendorX" + "1" + artifact_digest).encode('utf-8')
     artifact_sig = MLDSASigner.sign('ML-DSA-87', priv, payload).hex()
     
-    # It should be refused by require_allowed_algorithm since the vendor's sig_alg is MD5
+    # Needs a mock approval_assertion to pass the first checks
+    import time
+    from kormic.models.approval import DelegationAssertion
+    principal_priv, principal_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+    challenge_p = "nonce-p-9"
+    possession_p = MLDSASigner.sign('ML-DSA-87', principal_priv, f"{challenge_p}:alice".encode('utf-8')).hex()
+    central.enroll_principal("alice", principal_pub.hex(), possession_p, "proof-domain", challenge_p)
+    # the central snapshot was already pushed, we'd need to re-push but for this test, let's just make sure it fails on the crypto check first.
+    # Ah wait, approval_assertion check is currently before vendor crypto check in manager.py?
+    # No, we can just mock an assertion dictionary so it doesn't fail the `if not approval_assertion` check.
+    # The vendor check actually happens BEFORE approval assertion check now.
+    
     with pytest.raises(ValueError, match="is not on the ALLOWLIST"):
         manager.register_new_agent(
             agent_type="BLD",
@@ -546,5 +557,6 @@ def test_vendor_agility_downgrade():
             guardrails={},
             artifact_signature=artifact_sig,
             vendor_pub_key=pub.hex(),
-            artifact_digest=artifact_digest
+            artifact_digest=artifact_digest,
+            approval_assertion={"mock": "data"} # bypass the missing check so we hit the crypto check
         )

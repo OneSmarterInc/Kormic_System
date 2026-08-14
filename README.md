@@ -122,7 +122,7 @@ This phase solves the commercial "multi-tenant" problem, ensuring that a softwar
 - **Proof of Possession (Replay-Protected):** Enrollment enforces strict Challenge-Response cryptography. The vendor must mathematically prove ownership of the private key by signing a payload binding a fresh ML-DSA challenge nonce issued by the central authority to their exact entity name (`f"{nonce}:{name}"`). The Central Authority enforces strict single-use memory on all challenges, making token-theft replays or namespace hijacking mathematically impossible.
 - **Root-Signed Replication:** The vendor identity list is packaged into the global `RegistrySnapshot`. Replicas do not rely on local databases for vendor truth; they mathematically verify the root signature of the global snapshot to establish identity consistency worldwide.
 
-## Phase 6 Features (Reconnaissance Gap Defenses)
+## Phase 6 Features (Reconnaissance Gap Defenses & Identity-Bound Approval)
 This phase strictly seals the "Reconnaissance Gap," where compromised agents could steal data without triggering an active log entry, protecting systems from scenarios like the Hugging Face RCE breach and Reddit scraping incident.
 
 ### 20. Read-Scope Manifests
@@ -136,6 +136,12 @@ This phase strictly seals the "Reconnaissance Gap," where compromised agents cou
 
 ### 23. Attested Egress Firewall
 - **Session-Boundary Containment:** The Sandbox explicitly declares and attests the agent's `allowed_egress` target scope. True enforcement is paired with out-of-process network controls (like an infrastructure sidecar or proxy), ensuring multiple concurrent agents cannot clobber each other's network policies in a shared interpreter.
+
+### 24. Identity-Bound Approval & Principal Anti-Impersonation
+- **Principal Enrollment & Anti-Squatting:** Humans and organizational principals enroll insert-only using cryptographic proof of possession, mirroring vendor enrollment to prevent spoofed identities.
+- **Consequential Approval Gates:** The system refuses to mint a Build AIN unless authorized by an enrolled principal. The approval must be a time-bounded, single-use `DelegationAssertion` signed by the principal.
+- **Sealed Approval Chain:** The attested approval is cryptographically sealed inside the Build AIN's birth record, guaranteeing that receivers can verify the human approval directly from the cryptographic chain without trusting standard display names or checkboxes.
+- **High-Fidelity Detection Signals:** Any attempt to use a counterfeit, expired, or non-enrolled identity at the approval gate fires a structured, high-fidelity detection event.
 
 ---
 

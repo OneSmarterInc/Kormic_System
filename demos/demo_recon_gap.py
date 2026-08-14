@@ -26,13 +26,32 @@ def run_demo():
     store = SQLiteRecordStore(":memory:")
     
     print("\n[+] Enrolling Vendor (e.g. University of Zurich / Acme Corp)...")
-    vpriv, vpub = MLDSASigner.generate_keypair()
+    vpriv, vpub = MLDSASigner.generate_keypair('ML-DSA-87')
     import uuid
     nonce = uuid.uuid4().hex
-    sig = MLDSASigner.sign(vpriv, f"{nonce}:vendor_demo".encode()).hex()
+    sig = MLDSASigner.sign('ML-DSA-87', vpriv, f"{nonce}:vendor_demo".encode()).hex()
     central.enroll_vendor("vendor_demo", vpub.hex(), sig, "Vendor ID", nonce)
 
+
+    print("\n[+] Enrolling Principal (e.g. Identity Board)...")
+    ppriv, ppub = MLDSASigner.generate_keypair('ML-DSA-87')
+    p_nonce = uuid.uuid4().hex
+    p_sig = MLDSASigner.sign('ML-DSA-87', ppriv, f"{p_nonce}:alice".encode()).hex()
+    central.enroll_principal("alice", ppub.hex(), p_sig, "Identity Board", p_nonce)
+
+    from kormic.models.approval import DelegationAssertion
+    assertion = DelegationAssertion(
+        principal_ref="alice", action="release", target="digest",
+        expiry=int(time.time() + 300), nonce="nonce-app-demo", sig_alg="ML-DSA-87", fmt_ver=1
+    )
+    sig_app = MLDSASigner.sign('ML-DSA-87', ppriv, assertion.signable_payload()).hex()
+    approval_assertion = DelegationAssertion(
+        principal_ref=assertion.principal_ref, action=assertion.action, target=assertion.target,
+        expiry=assertion.expiry, nonce=assertion.nonce, signature=sig_app, sig_alg=assertion.sig_alg, fmt_ver=assertion.fmt_ver
+    ).to_dict()
+
     registry = RegionalReplicaRegistry("us-east", key_custody.get_root_public_key(), local_only=True)
+
     registry.apply_snapshot(central.snapshot())
     manager = AgentManager(key_custody, store, registry_reader=registry)
 
@@ -46,9 +65,10 @@ def run_demo():
         guardrails={"allowed_tools": ["search"]},
         read_scopes=["reddit_changemyview"], # Can only scrape this subreddit
         allowed_egress=["api.reddit.com"], # Can only egress to Reddit
-        artifact_signature=MLDSASigner.sign(vpriv, "vendor_demov1digest".encode()).hex(),
+        artifact_signature=MLDSASigner.sign('ML-DSA-87', vpriv, "vendor_demov1digest".encode()).hex(),
         vendor_pub_key=vpub.hex(),
-        artifact_digest="digest"
+        artifact_digest="digest",
+        approval_assertion=approval_assertion
     )
 
     # 3. Deploy DAIN
@@ -73,7 +93,7 @@ def run_demo():
     ped_dict = store.get(dain_res.agent_code)
     bain_ped_dict = store.get(bain_res.agent_code)
     t_nonce = verifier.generate_challenge()
-    t_sig = MLDSASigner.sign(vpriv, ("head" + t_nonce).encode()).hex()
+    t_sig = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce).encode()).hex()
     
     token = ProofToken(
         agent_code=dain_res.agent_code,
@@ -84,7 +104,8 @@ def run_demo():
         authority_reference="test",
         parent_birth_record=bain_ped_dict["birth_record"],
         challenge=t_nonce,
-        signature=t_sig
+        signature=t_sig,
+        sig_alg='ML-DSA-87', fmt_ver=1
     )
 
     # --- SIMULATE HUGGING FACE INCIDENT ---
@@ -127,7 +148,7 @@ def run_demo():
     
     print("\n[+] Rogue Agent generates a fresh ProofToken to scrape unauthorized r/politics...")
     t_nonce_politics = verifier.generate_challenge()
-    t_sig_politics = MLDSASigner.sign(vpriv, ("head" + t_nonce_politics).encode()).hex()
+    t_sig_politics = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce_politics).encode()).hex()
     token_politics = ProofToken(
         agent_code=dain_res.agent_code,
         birth_record=ped_dict["birth_record"],
@@ -137,7 +158,8 @@ def run_demo():
         authority_reference="test",
         parent_birth_record=bain_ped_dict["birth_record"],
         challenge=t_nonce_politics,
-        signature=t_sig_politics
+        signature=t_sig_politics,
+        sig_alg='ML-DSA-87', fmt_ver=1
     )
     
     verdict_politics = receiver.validate(token_politics, action_type="read", resource="reddit_politics")
@@ -148,7 +170,7 @@ def run_demo():
 
     print("\n[+] Agent generates a FRESH ProofToken to scrape authorized r/changemyview...")
     t_nonce_2 = verifier.generate_challenge()
-    t_sig_2 = MLDSASigner.sign(vpriv, ("head" + t_nonce_2).encode()).hex()
+    t_sig_2 = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce_2).encode()).hex()
     
     token_2 = ProofToken(
         agent_code=dain_res.agent_code,
@@ -159,7 +181,8 @@ def run_demo():
         authority_reference="test",
         parent_birth_record=bain_ped_dict["birth_record"],
         challenge=t_nonce_2,
-        signature=t_sig_2
+        signature=t_sig_2,
+        sig_alg='ML-DSA-87', fmt_ver=1
     )
     
     verdict_cmv = receiver.validate(token_2, action_type="read", resource="reddit_changemyview")

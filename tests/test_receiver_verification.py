@@ -28,16 +28,53 @@ class TestReceiverArtifactVerification:
         challenge_nonce = "test-nonce-1"
         possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
         self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof-domain", challenge_nonce)
+        
+        # Enroll a principal for approvals
+        self.principal_priv, self.principal_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        self.principal_pub_hex = self.principal_pub.hex()
+        challenge_p = "nonce-p-1"
+        possession_p = MLDSASigner.sign('ML-DSA-87', self.principal_priv, f"{challenge_p}:alice".encode('utf-8')).hex()
+        self.central.enroll_principal("alice", self.principal_pub_hex, possession_p, "proof-domain", challenge_p)
+        
         self.replica.apply_snapshot(self.central.snapshot())
         
         self.verifier = Verifier(self.replica)
         self.authority = LocalAuthority(self.manager, self.verifier, self.central, self.replica)
         self.receiver = ReceiverClient(self.authority, enforcement_mode="enforced")
 
-    def _mint_build_ain(self, vendor_name, vendor_priv_key, vendor_pub_hex, artifact_bytes):
+    def _mint_build_ain(self, vendor_name, vendor_priv_key, vendor_pub_hex, artifact_bytes, omit_approval=False, bad_approval=False):
         artifact_digest = hash_hex("SHA-256", artifact_bytes)
         payload = (vendor_name + "1" + artifact_digest).encode('utf-8')
         artifact_sig = MLDSASigner.sign('ML-DSA-87', vendor_priv_key, payload).hex()
+        
+        approval_assertion = None
+        if not omit_approval:
+            from kormic.models.approval import DelegationAssertion
+            assertion = DelegationAssertion(
+                principal_ref="alice",
+                action="release",
+                target=artifact_digest,
+                expiry=int(time.time() + 300),
+                nonce="nonce-app-1",
+                sig_alg="ML-DSA-87",
+                fmt_ver=1
+            )
+            priv = self.principal_priv
+            if bad_approval:
+                priv, _ = MLDSASigner.generate_keypair('ML-DSA-87') # Rogue key
+            sig = MLDSASigner.sign('ML-DSA-87', priv, assertion.signable_payload()).hex()
+            
+            signed_assertion = DelegationAssertion(
+                principal_ref=assertion.principal_ref,
+                action=assertion.action,
+                target=assertion.target,
+                expiry=assertion.expiry,
+                nonce=assertion.nonce,
+                signature=sig,
+                sig_alg=assertion.sig_alg,
+                fmt_ver=assertion.fmt_ver
+            )
+            approval_assertion = signed_assertion.to_dict()
         
         ain, _ = self.manager.register_new_agent(
             agent_type="BLD",
@@ -47,7 +84,8 @@ class TestReceiverArtifactVerification:
             guardrails={},
             artifact_signature=artifact_sig,
             vendor_pub_key=vendor_pub_hex,
-            artifact_digest=artifact_digest
+            artifact_digest=artifact_digest,
+            approval_assertion=approval_assertion
         )
         
         ped_dict = self.store.get(ain)

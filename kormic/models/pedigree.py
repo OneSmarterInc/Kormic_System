@@ -16,6 +16,7 @@ class BirthRecord:
     derived_from: Optional[str] = None
     vendor_pub_key: Optional[str] = None
     artifact_digest: Optional[str] = None
+    approval_assertion: Optional[Dict[str, Any]] = None
     read_scopes: Optional[List[str]] = None
     allowed_egress: Optional[List[str]] = None
 
@@ -35,6 +36,8 @@ class BirthRecord:
             "artifact_digest": self.artifact_digest,
             "signature": self.signature.hex()
         }
+        if self.approval_assertion is not None:
+            res["approval_assertion"] = self.approval_assertion
         if self.read_scopes is not None:
             res["read_scopes"] = self.read_scopes
         if self.allowed_egress is not None:
@@ -55,6 +58,7 @@ class BirthRecord:
             derived_from=data.get("derived_from"),
             vendor_pub_key=data.get("vendor_pub_key"),
             artifact_digest=data.get("artifact_digest"),
+            approval_assertion=data.get("approval_assertion"),
             read_scopes=data.get("read_scopes"),
             allowed_egress=data.get("allowed_egress"),
             signature=bytes.fromhex(data["signature"])
@@ -75,6 +79,8 @@ class BirthRecord:
             "vendor_pub_key": self.vendor_pub_key,
             "artifact_digest": self.artifact_digest
         }
+        if self.approval_assertion is not None:
+            res["approval_assertion"] = self.approval_assertion
         if self.read_scopes is not None:
             res["read_scopes"] = self.read_scopes
         if self.allowed_egress is not None:

@@ -105,6 +105,24 @@ class TestStorageIsolation:
         # FINDING: Two DAINs from the same BAIN definitively share absolutely no salt or storage locus
         from kormic.crypto.algorithms import MLDSASigner
         # 1. Enroll BAIN
+        import time
+        from kormic.models.approval import DelegationAssertion
+        principal_priv, principal_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_p = "nonce-p-1"
+        possession_p = MLDSASigner.sign('ML-DSA-87', principal_priv, f"{challenge_p}:alice".encode('utf-8')).hex()
+        self.central.enroll_principal("alice", principal_pub.hex(), possession_p, "proof-domain", challenge_p)
+        self.replica.apply_snapshot(self.central.snapshot())
+
+        assertion = DelegationAssertion(
+            principal_ref="alice", action="release", target="sha256_bain_multi",
+            expiry=int(time.time() + 300), nonce="nonce-app-2", sig_alg="ML-DSA-87", fmt_ver=1
+        )
+        sig_app = MLDSASigner.sign('ML-DSA-87', principal_priv, assertion.signable_payload()).hex()
+        approval_assertion = DelegationAssertion(
+            principal_ref=assertion.principal_ref, action=assertion.action, target=assertion.target,
+            expiry=assertion.expiry, nonce=assertion.nonce, signature=sig_app, sig_alg=assertion.sig_alg, fmt_ver=assertion.fmt_ver
+        ).to_dict()
+
         artifact_digest = "sha256_bain_multi"
         bain_code, _ = self.manager.register_new_agent(
             agent_type="BLD",
@@ -114,7 +132,8 @@ class TestStorageIsolation:
             guardrails={},
             artifact_signature=MLDSASigner.sign('ML-DSA-87', self.vendor_priv, b"vendor-multi1.0.0" + artifact_digest.encode('utf-8')).hex(),
             vendor_pub_key=self.vendor_pub_hex,
-            artifact_digest=artifact_digest
+            artifact_digest=artifact_digest,
+            approval_assertion=approval_assertion
         )
         
         # 2. Enroll DAIN 1

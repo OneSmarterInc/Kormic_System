@@ -76,6 +76,7 @@ class AgentManager:
         artifact_signature: Optional[str] = None, # BAIN Squatting Control: Vendor's signature over release
         vendor_pub_key: Optional[str] = None, # BAIN Squatting Control: Vendor's public key
         artifact_digest: Optional[str] = None, # BAIN Squatting Control: Digest of the software artifact
+        approval_assertion: Optional[Dict[str, Any]] = None, # Identity-bound approval assertion
         read_scopes: Optional[List[str]] = None, # What data this agent is allowed to read
         allowed_egress: Optional[List[str]] = None # What IPs/Domains this agent is allowed to contact
     ) -> AgentEnrollmentResult:
@@ -105,6 +106,9 @@ class AgentManager:
             if not enrolled_vendor or enrolled_vendor.get('public_key') != vendor_pub_key:
                 raise ValueError("Vendor Squatting Attempt: Key does not match enrolled vendor or vendor not enrolled.")
             
+            if not approval_assertion:
+                raise ValueError("BLD agents require a verified approval_assertion")
+
             from kormic.crypto.algorithms import MLDSASigner
             payload = (entity_ref + instance_num + artifact_digest).encode('utf-8')
             try:
@@ -146,6 +150,7 @@ class AgentManager:
             derived_from=derived_from,
             vendor_pub_key=vendor_pub_key,
             artifact_digest=artifact_digest,
+            approval_assertion=approval_assertion,
             read_scopes=read_scopes,
             allowed_egress=allowed_egress
         )

@@ -26,10 +26,28 @@ class TestReconGap:
         self.central.enroll_vendor("vendor_recon", vpub.hex(), sig, "id-doc", nonce)
         
         self.store = SQLiteRecordStore(":memory:")
+        # Enroll a principal for approvals
+        principal_priv, principal_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_p = "nonce-p-1"
+        possession_p = MLDSASigner.sign('ML-DSA-87', principal_priv, f"{challenge_p}:alice".encode('utf-8')).hex()
+        self.central.enroll_principal("alice", principal_pub.hex(), possession_p, "proof-domain", challenge_p)
+        
         self.registry = RegionalReplicaRegistry("test", self.key_custody.get_root_public_key(), local_only=True)
         self.registry.apply_snapshot(self.central.snapshot())
         
         self.manager = AgentManager(self.key_custody, self.store, registry_reader=self.registry)
+
+        import time
+        from kormic.models.approval import DelegationAssertion
+        assertion = DelegationAssertion(
+            principal_ref="alice", action="release", target="digest1",
+            expiry=int(time.time() + 300), nonce="nonce-app-1", sig_alg="ML-DSA-87", fmt_ver=1
+        )
+        sig_app = MLDSASigner.sign('ML-DSA-87', principal_priv, assertion.signable_payload()).hex()
+        approval_assertion = DelegationAssertion(
+            principal_ref=assertion.principal_ref, action=assertion.action, target=assertion.target,
+            expiry=assertion.expiry, nonce=assertion.nonce, signature=sig_app, sig_alg=assertion.sig_alg, fmt_ver=assertion.fmt_ver
+        ).to_dict()
 
         # Create BAIN
         self.bain_res = self.manager.register_new_agent(
@@ -42,7 +60,8 @@ class TestReconGap:
             allowed_egress=["api.reddit.com", "api.github.com"],
             artifact_signature=MLDSASigner.sign('ML-DSA-87', vpriv, "vendor_reconv1digest1".encode()).hex(),
             vendor_pub_key=vpub.hex(),
-            artifact_digest="digest1"
+            artifact_digest="digest1",
+            approval_assertion=approval_assertion
         )
         
         # Create DAIN within BAIN bounds

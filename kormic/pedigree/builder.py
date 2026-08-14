@@ -18,6 +18,7 @@ def create_birth_record(
     derived_from: Optional[str] = None,
     vendor_pub_key: Optional[str] = None,
     artifact_digest: Optional[str] = None,
+    approval_assertion: Optional[Dict[str, Any]] = None,
     read_scopes: Optional[List[str]] = None,
     allowed_egress: Optional[List[str]] = None
 ) -> BirthRecord:
@@ -43,6 +44,9 @@ def create_birth_record(
         "artifact_digest": artifact_digest
     }
     
+    if approval_assertion is not None:
+        birth_payload["approval_assertion"] = approval_assertion
+    
     if read_scopes is not None:
         birth_payload["read_scopes"] = read_scopes
     if allowed_egress is not None:
@@ -67,6 +71,7 @@ def create_birth_record(
         derived_from=derived_from,
         vendor_pub_key=vendor_pub_key,
         artifact_digest=artifact_digest,
+        approval_assertion=approval_assertion,
         read_scopes=read_scopes,
         allowed_egress=allowed_egress
     )

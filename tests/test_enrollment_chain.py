@@ -50,6 +50,25 @@ class TestEnrollmentChain:
         artifact_digest = "sha256_abcdef123"
         artifact_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, b"vendorX1.0.0" + artifact_digest.encode('utf-8')).hex()
         
+        import time
+        from kormic.models.approval import DelegationAssertion
+        # Enroll a principal for approvals
+        principal_priv, principal_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_p = "nonce-p-1"
+        possession_p = MLDSASigner.sign('ML-DSA-87', principal_priv, f"{challenge_p}:alice".encode('utf-8')).hex()
+        self.central.enroll_principal("alice", principal_pub.hex(), possession_p, "proof-domain", challenge_p)
+        self.replica.apply_snapshot(self.central.snapshot())
+
+        assertion = DelegationAssertion(
+            principal_ref="alice", action="release", target=artifact_digest,
+            expiry=int(time.time() + 300), nonce="nonce-app-2", sig_alg="ML-DSA-87", fmt_ver=1
+        )
+        sig_app = MLDSASigner.sign('ML-DSA-87', principal_priv, assertion.signable_payload()).hex()
+        approval_assertion = DelegationAssertion(
+            principal_ref=assertion.principal_ref, action=assertion.action, target=assertion.target,
+            expiry=assertion.expiry, nonce=assertion.nonce, signature=sig_app, sig_alg=assertion.sig_alg, fmt_ver=assertion.fmt_ver
+        ).to_dict()
+
         bain_result = self.manager.register_new_agent(
             agent_type="BLD",
             entity_ref="vendorX",
@@ -58,7 +77,8 @@ class TestEnrollmentChain:
             guardrails={"tools": ["A", "B"]},
             artifact_signature=artifact_sig,
             vendor_pub_key=self.vendor_pub_hex,
-            artifact_digest=artifact_digest
+            artifact_digest=artifact_digest,
+            approval_assertion=approval_assertion
         )
         
         # Assert it has the named fields

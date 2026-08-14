@@ -175,6 +175,29 @@ class ReceiverClient:
                         fail_reason = str(e)
                         fail_status = "HALT_HARD"
 
+        # 4. Verify Approval Assertion (Piece 3)
+        if not failed:
+            approval_data = birth.get("approval_assertion")
+            if not approval_data:
+                reason = "Build AIN is missing an approval_assertion."
+                self._emit_detection(token, "approval_assertion_missing", "artifact", reason)
+                failed = True
+                fail_reason = reason
+                fail_status = "HALT_HARD"
+            else:
+                from kormic.models.approval import DelegationAssertion
+                from kormic.verify.approval import verify_delegation_assertion
+                try:
+                    assertion = DelegationAssertion.from_dict(approval_data)
+                    # For a build, the action is usually "release" and target is the artifact digest
+                    verify_delegation_assertion(assertion, registry_reader, "release", expected_digest)
+                except Exception as e:
+                    reason = f"Approval assertion verification failed: {str(e)}"
+                    self._emit_detection(token, "approval_assertion_invalid", "artifact", reason)
+                    failed = True
+                    fail_reason = reason
+                    fail_status = "HALT_HARD"
+
         if failed:
             if self.enforcement_mode == "enforced":
                 return Verdict(ok=False, status=fail_status, reason=fail_reason)

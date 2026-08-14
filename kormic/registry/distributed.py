@@ -33,6 +33,18 @@ class VendorEnrollment:
     version: int
 
 @dataclass
+class PrincipalEnrollment:
+    principal_ref: str
+    public_key: str
+    status: str
+    enrolled_at: float
+    enrolled_by: str
+    identity_proof_ref: str
+    sig_alg: str
+    fmt_ver: int
+    version: int
+
+@dataclass
 class RegistrySnapshot:
     """A signed snapshot of the registry state. Distributed to Regional Replicas."""
     version: int
@@ -43,12 +55,13 @@ class RegistrySnapshot:
     spent_nonces: List[str]
     checkpoint_indices: Dict[str, int]
     vendors: Dict[str, dict]  # entity_ref -> VendorEnrollment dict
+    principals: Dict[str, dict] = None # principal_ref -> PrincipalEnrollment dict
     sig_alg: str = None
     fmt_ver: int = None
     root_sig_hex: str = ""
 
     def payload(self) -> bytes:
-        return json.dumps({
+        d = {
             "version": self.version,
             "issued_at": self.issued_at,
             "epochs": self.epochs,
@@ -59,7 +72,10 @@ class RegistrySnapshot:
             "vendors": self.vendors,
             "sig_alg": self.sig_alg,
             "fmt_ver": self.fmt_ver
-        }, sort_keys=True).encode('utf-8')
+        }
+        if self.principals is not None:
+            d["principals"] = self.principals
+        return json.dumps(d, sort_keys=True).encode('utf-8')
 
 
 class CentralRegistryAuthority:
@@ -139,6 +155,47 @@ class CentralRegistryAuthority:
         self.vendors[entity_ref].status = VendorStatus.REVOKED
         self.version += 1
 
+    def enroll_principal(self, principal_ref: str, public_key: str, possession_proof: str, identity_proof_ref: str, challenge_nonce: str) -> None:
+        if not identity_proof_ref:
+            raise ValueError("identity_proof_ref is required.")
+        if challenge_nonce in self.spent_nonces:
+            raise ValueError("challenge nonce already used.")
+        if principal_ref in getattr(self, 'principals', {}):
+            raise ValueError(f"Principal '{principal_ref}' has already been bound.")
+            
+        signed = f"{challenge_nonce}:{principal_ref}".encode("utf-8")
+        try:
+            sig_bytes = bytes.fromhex(possession_proof)
+            pub_bytes = bytes.fromhex(public_key)
+            sig_alg = getattr(self.key_custody, "sig_alg", "ML-DSA-87")
+            if not MLDSASigner.verify(sig_alg, pub_bytes, signed, sig_bytes):
+                raise ValueError("Proof of possession failed.")
+        except Exception as e:
+            raise ValueError(f"Invalid proof of possession: {str(e)}")
+
+        self.spend_nonce(challenge_nonce)
+
+        self.version += 1
+        if not hasattr(self, 'principals'):
+            self.principals = {}
+        self.principals[principal_ref] = PrincipalEnrollment(
+            principal_ref=principal_ref,
+            public_key=public_key,
+            status=VendorStatus.ACTIVE,
+            enrolled_at=time.time(),
+            enrolled_by="central_authority",
+            identity_proof_ref=identity_proof_ref,
+            sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
+            fmt_ver=1,
+            version=self.version
+        )
+
+    def revoke_principal(self, principal_ref: str) -> None:
+        if not hasattr(self, 'principals') or principal_ref not in self.principals:
+            raise ValueError(f"Principal '{principal_ref}' not found.")
+        self.principals[principal_ref].status = VendorStatus.REVOKED
+        self.version += 1
+
     def rotate_vendor_key(self, *args, **kwargs):
         raise NotImplementedError("rotate_vendor_key is stubbed out for this round.")
 
@@ -160,6 +217,7 @@ class CentralRegistryAuthority:
             spent_nonces=list(self.spent_nonces.keys()),
             checkpoint_indices=self.checkpoint_indices.copy(),
             vendors={k: asdict(v) for k, v in self.vendors.items()},
+            principals={k: asdict(v) for k, v in getattr(self, 'principals', {}).items()},
             sig_alg=getattr(self.key_custody, "sig_alg", "ML-DSA-87"),
             fmt_ver=1
         )
@@ -318,4 +376,12 @@ class RegionalReplicaRegistry(RegistryReader):
         vendor_dict = self.snapshot.vendors.get(entity_ref)
         if vendor_dict and vendor_dict.get('status') == VendorStatus.ACTIVE:
             return vendor_dict
+        return None
+
+    def get_enrolled_principal(self, principal_ref: str) -> Optional[dict]:
+        if not self.snapshot or not self.snapshot.principals:
+            return None
+        principal_dict = self.snapshot.principals.get(principal_ref)
+        if principal_dict and principal_dict.get('status') == VendorStatus.ACTIVE:
+            return principal_dict
         return None
