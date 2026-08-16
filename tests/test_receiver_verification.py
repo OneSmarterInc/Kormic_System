@@ -201,3 +201,10 @@ class TestReceiverArtifactVerification:
         assert verdict.ok is True
         assert verdict.status == "ADVISORY_BYPASS"
         assert "Artifact digest mismatch" in verdict.reason
+
+    def test_mint_time_approval_refusal(self):
+        # A test asserts the mint-time refusal directly by handing register_new_agent 
+        # a fabricated approval and expecting the raise
+        artifact_bytes = b"real-artifact-code-123"
+        with pytest.raises(ValueError, match="Invalid approval assertion"):
+            self._mint_build_ain("acme", self.vendor_priv, self.vendor_pub_hex, artifact_bytes, bad_approval=True)

@@ -84,3 +84,25 @@ class TestApprovalVerification:
         # The replica should have synced the spend if local
         with pytest.raises(ValueError, match="spent"):
             verify_delegation_assertion(assertion, self.replica, "release", "artifact_123")
+
+    def test_verify_assertion_over_long_expiry(self):
+        # Expiry > time.time() + 300
+        assertion = self._create_assertion("release", "artifact_123", time.time() + 600, "nonce-long")
+        with pytest.raises(ValueError, match="expiry exceeds nonce TTL"):
+            verify_delegation_assertion(assertion, self.replica, "release", "artifact_123")
+
+    def test_verify_assertion_off_allowlist_alg(self):
+        assertion = self._create_assertion("release", "artifact_123", time.time() + 300, "nonce-alg")
+        # Tamper with the declared algorithm to something invalid
+        assertion = DelegationAssertion(
+            principal_ref=assertion.principal_ref,
+            action=assertion.action,
+            target=assertion.target,
+            expiry=assertion.expiry,
+            nonce=assertion.nonce,
+            signature=assertion.signature,
+            sig_alg="INVALID-ALG",
+            fmt_ver=assertion.fmt_ver
+        )
+        with pytest.raises(ValueError, match="is not on the ALLOWLIST"):
+            verify_delegation_assertion(assertion, self.replica, "release", "artifact_123")

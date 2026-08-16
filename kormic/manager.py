@@ -106,9 +106,6 @@ class AgentManager:
             if not enrolled_vendor or enrolled_vendor.get('public_key') != vendor_pub_key:
                 raise ValueError("Vendor Squatting Attempt: Key does not match enrolled vendor or vendor not enrolled.")
             
-            if not approval_assertion:
-                raise ValueError("BLD agents require a verified approval_assertion")
-
             from kormic.crypto.algorithms import MLDSASigner
             payload = (entity_ref + instance_num + artifact_digest).encode('utf-8')
             try:
@@ -121,6 +118,17 @@ class AgentManager:
                     raise ValueError("Artifact signature verification failed.")
             except Exception as e:
                 raise ValueError(f"Invalid artifact binding: {str(e)}")
+
+            if not approval_assertion:
+                raise ValueError("BLD agents require a verified approval_assertion")
+
+            from kormic.models.approval import DelegationAssertion
+            from kormic.verify.approval import verify_delegation_assertion
+            try:
+                _assertion = DelegationAssertion.from_dict(approval_assertion)
+                verify_delegation_assertion(_assertion, self.registry_reader, "release", artifact_digest, spend_nonce=True)
+            except Exception as e:
+                raise ValueError(f"Invalid approval assertion: {str(e)}")
 
         # 1. Calculate privacy hash for real-world identity
         realid_hash = sha256_hex(real_world_id)
