@@ -208,3 +208,20 @@ class TestReceiverArtifactVerification:
         artifact_bytes = b"real-artifact-code-123"
         with pytest.raises(ValueError, match="Invalid approval assertion"):
             self._mint_build_ain("acme", self.vendor_priv, self.vendor_pub_hex, artifact_bytes, bad_approval=True)
+
+    def test_verify_deferred_consumption_success(self, monkeypatch):
+        # A build minted with a valid approval verifies at the receiver regardless of how much later it is consumed.
+        # Consume well after the approval's expiry.
+        artifact_bytes = b"deferred-artifact-code"
+        
+        # 1. Mint it successfully (expiry is set to time.time() + 300)
+        token, artifact_sig = self._mint_build_ain("acme", self.vendor_priv, self.vendor_pub_hex, artifact_bytes)
+        
+        # 2. Fast forward time by 400 seconds
+        current_time = time.time()
+        monkeypatch.setattr(time, 'time', lambda: current_time + 400)
+        
+        # 3. Verify at the receiver
+        verdict = self.receiver.verify_artifact(artifact_bytes, token, artifact_sig)
+        assert verdict.ok is True
+        assert verdict.status == "PASS"

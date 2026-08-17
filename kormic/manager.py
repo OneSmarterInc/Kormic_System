@@ -126,7 +126,7 @@ class AgentManager:
             from kormic.verify.approval import verify_delegation_assertion
             try:
                 _assertion = DelegationAssertion.from_dict(approval_assertion)
-                verify_delegation_assertion(_assertion, self.registry_reader, "release", artifact_digest, spend_nonce=True)
+                verify_delegation_assertion(_assertion, self.registry_reader, "release", artifact_digest, check_freshness=True)
             except Exception as e:
                 raise ValueError(f"Invalid approval assertion: {str(e)}")
 

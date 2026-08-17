@@ -4,13 +4,14 @@ from kormic.crypto.algorithms import MLDSASigner
 from kormic.interfaces.registry import RegistryReader
 
 from kormic.crypto.agility import require_allowed_algorithm
+from kormic.registry.distributed import NONCE_TTL_SECONDS
 
 def verify_delegation_assertion(
     assertion: DelegationAssertion,
     registry: RegistryReader,
     expected_action: str,
     expected_target: str,
-    spend_nonce: bool = True
+    check_freshness: bool = True
 ) -> bool:
     """
     Verifies that a delegation assertion is valid for the expected action and target.
@@ -25,15 +26,16 @@ def verify_delegation_assertion(
     if assertion.target != expected_target:
         raise ValueError(f"Target mismatch: expected '{expected_target}', got '{assertion.target}'")
 
-    if time.time() > assertion.expiry:
-        raise ValueError("Delegation assertion has expired")
+    if check_freshness:
+        if time.time() > assertion.expiry:
+            raise ValueError("Delegation assertion has expired")
 
-    # Fix 3: Assertion expiry bounded by nonce TTL
-    if assertion.expiry > time.time() + 300:
-        raise ValueError("Delegation assertion expiry exceeds nonce TTL")
+        # Fix 3: Assertion expiry bounded by nonce TTL
+        if assertion.expiry > time.time() + NONCE_TTL_SECONDS:
+            raise ValueError("Delegation assertion expiry exceeds nonce TTL")
 
-    if spend_nonce and hasattr(registry, "spent_nonces") and assertion.nonce in registry.spent_nonces:
-        raise ValueError("Delegation assertion nonce has already been spent")
+        if hasattr(registry, "spent_nonces") and assertion.nonce in registry.spent_nonces:
+            raise ValueError("Delegation assertion nonce has already been spent")
 
     principal = registry.get_enrolled_principal(assertion.principal_ref)
     if not principal:
@@ -54,7 +56,7 @@ def verify_delegation_assertion(
         raise ValueError("Delegation assertion signature verification failed")
 
     # Mark the nonce as spent
-    if spend_nonce and hasattr(registry, "spend_nonce"):
+    if check_freshness and hasattr(registry, "spend_nonce"):
         registry.spend_nonce(assertion.nonce)
 
     return True

@@ -190,7 +190,7 @@ class ReceiverClient:
                 try:
                     assertion = DelegationAssertion.from_dict(approval_data)
                     # For a build, the action is usually "release" and target is the artifact digest
-                    verify_delegation_assertion(assertion, registry_reader, "release", expected_digest, spend_nonce=False)
+                    verify_delegation_assertion(assertion, registry_reader, "release", expected_digest, check_freshness=False)
                 except Exception as e:
                     reason = f"Approval assertion verification failed: {str(e)}"
                     self._emit_detection(token, "approval_assertion_invalid", "artifact", reason)
