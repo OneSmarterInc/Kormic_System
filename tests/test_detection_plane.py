@@ -146,3 +146,57 @@ def test_receiver_out_of_scope_read_enforced(mock_verifier, mock_token):
     assert verdict.ok is False
     assert len(sink.events) == 1
     assert sink.events[0].event_kind == "out_of_scope_read"
+
+def test_detection_event_severity_and_session(mock_verifier, mock_token):
+    import dataclasses
+    mock_token = dataclasses.replace(mock_token, challenge="session-123")
+    sink = DevDetectionSink()
+    sandbox = Sandbox(mock_verifier, mock_token, detection_sink=sink, enforcement_mode="enforced", recon_threshold=2)
+    
+    # 1. Warning for out_of_scope
+    with pytest.raises(PermissionError):
+        sandbox.use_tool("toolB")
+        
+    assert sink.events[0].severity == "warning"
+    assert sink.events[0].session_id == "session-123"
+    
+    # 2. Critical for recon_breadth
+    try: sandbox.check_egress("10.0.0.2")
+    except: pass
+    
+    try: sandbox.check_egress("10.0.0.3")
+    except: pass
+    
+    recon_events = [e for e in sink.events if e.event_kind == "reconnaissance_breadth"]
+    assert len(recon_events) == 1
+    assert recon_events[0].severity == "critical"
+
+def test_throwing_sink_does_not_prevent_refusal(mock_verifier, mock_token):
+    class ThrowingSink:
+        def emit(self, event):
+            raise RuntimeError("Webhook down!")
+            
+    sandbox = Sandbox(mock_verifier, mock_token, detection_sink=ThrowingSink(), enforcement_mode="enforced")
+    
+    with pytest.raises(PermissionError) as exc:
+        sandbox.use_tool("toolB")
+    
+    assert "BLOCKED" in str(exc.value)
+
+def test_reconnaissance_ongoing_digest(mock_verifier, mock_token):
+    sink = DevDetectionSink()
+    sandbox = Sandbox(mock_verifier, mock_token, detection_sink=sink, enforcement_mode="advisory", recon_threshold=2)
+    sandbox.digest_interval = 0.1 # Very fast interval for testing
+    
+    sandbox.check_egress("10.0.0.2")
+    sandbox.check_egress("10.0.0.3") # crosses threshold -> breadth emitted
+    
+    recon_evs = [e for e in sink.events if e.event_kind == "reconnaissance_breadth"]
+    assert len(recon_evs) == 1
+    
+    time.sleep(0.15)
+    sandbox.check_egress("10.0.0.4") # should trigger ongoing digest
+    
+    ongoing_evs = [e for e in sink.events if e.event_kind == "reconnaissance_ongoing"]
+    assert len(ongoing_evs) == 1
+    assert ongoing_evs[0].severity == "critical"

@@ -14,13 +14,17 @@ class KeyCustody(Protocol):
     """
     Capability interface for cryptography and secure key operations.
     Satisfies Section 4.3. Interface remains identical for software (Phase 1) and hardware/HSM (Phase 3).
+    
+    Operations are explicitly classified into two tiers:
+    - Routine: `sign_birth`. Happens constantly, per agent enrollment. Single-party.
+    - Root: `sign_root`, `generate_epoch_key`. Rare, catastrophic if abused. Threshold-gated.
     """
     def sign_birth(self, epoch_n: int, payload: bytes) -> bytes:
-        """Signs the birth record payload using the designated epoch private key."""
+        """[Routine] Signs the birth record payload using the designated epoch private key."""
         ...
 
     def sign_root(self, payload: bytes) -> bytes:
-        """Signs a payload using the master root private key (e.g., for registry snapshots)."""
+        """[Root] Signs a payload using the master root private key (e.g., for registry snapshots)."""
         ...
 
     def get_root_public_key(self) -> bytes:
@@ -28,7 +32,7 @@ class KeyCustody(Protocol):
         ...
 
     def generate_epoch_key(self, epoch_n: int) -> None:
-        """Generates a new epoch keypair and certifies it with the root key."""
+        """[Root] Generates a new epoch keypair and certifies it with the root key."""
         ...
 
     def get_epoch_certificate(self, epoch_n: int) -> bytes:

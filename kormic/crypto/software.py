@@ -1,9 +1,51 @@
 import os
+import hashlib
+import time
 from typing import List, Dict, Tuple
+from collections import defaultdict
 from kormic.interfaces.keys import KeyCustody, Share
 from kormic.crypto.algorithms import MLDSASigner
 from Crypto.Protocol.SecretSharing import Shamir
 from kormic.utils.exceptions import CryptographicError
+from kormic.runtime.detection import DetectionSink, DetectionEvent
+
+class ThresholdPolicy:
+    def __init__(self, k: int, n: int, detection_sink: DetectionSink = None):
+        self.k = k
+        self.n = n
+        self.detection_sink = detection_sink
+        self.approvals = defaultdict(set) # operation_key -> set of holder_ids
+        
+    def approve(self, op_key: str, holder_id: str):
+        self.approvals[op_key].add(holder_id)
+        
+    def check_and_consume(self, op_name: str, op_key: str) -> bool:
+        holders = self.approvals.get(op_key, set())
+        if len(holders) >= self.k:
+            del self.approvals[op_key]
+            if self.detection_sink:
+                self.detection_sink.emit(DetectionEvent(
+                    event_kind="root_operation_success",
+                    identity="threshold_quorum",
+                    action_target=op_name,
+                    reason=f"Operation {op_name} executed with quorum of {len(holders)}",
+                    mode="enforced",
+                    timestamp=time.time(),
+                    severity="info"
+                ))
+            return True
+            
+        if self.detection_sink:
+            self.detection_sink.emit(DetectionEvent(
+                event_kind="root_operation_refused",
+                identity="single_party",
+                action_target=op_name,
+                reason=f"Operation {op_name} refused: has {len(holders)} approvals, needs {self.k}",
+                mode="enforced",
+                timestamp=time.time(),
+                severity="critical"
+            ))
+        return False
 
 # DEV_KEY_NOT_PRODUCTION
 
@@ -29,7 +71,7 @@ class SoftwareKeyCustody(KeyCustody):
     Software implementation of KeyCustody for Phase 1.
     All keys are held in memory. Real HSM/threshold isolation is swapped in Phase 3.
     """
-    def __init__(self, sig_alg: str = "ML-DSA-87", hash_alg: str = "SHA-256"):
+    def __init__(self, sig_alg: str = "ML-DSA-87", hash_alg: str = "SHA-256", threshold_policy: ThresholdPolicy = None):
         if os.environ.get("KORMIC_DEPLOYMENT_MODE", "").lower() == "production":
             raise CryptographicError(
                 "DEV_KEY_NOT_PRODUCTION: SoftwareKeyCustody cannot be used in production mode. "
@@ -38,6 +80,7 @@ class SoftwareKeyCustody(KeyCustody):
             
         self.sig_alg = sig_alg
         self.hash_alg = hash_alg
+        self.threshold_policy = threshold_policy
         # DEV_KEY_NOT_PRODUCTION
         # Root key pair initialization
         self._root_priv, self._root_pub = MLDSASigner.generate_keypair(self.sig_alg)
@@ -50,9 +93,14 @@ class SoftwareKeyCustody(KeyCustody):
 
     def generate_epoch_key(self, epoch_n: int) -> None:
         """
-        Generates and signs a certificate for a new epoch using the Root key.
+        [Root] Generates and signs a certificate for a new epoch using the Root key.
         Satisfies Section 5.5 & 6.
         """
+        if self.threshold_policy:
+            op_key = f"generate_epoch_key_{epoch_n}"
+            if not self.threshold_policy.check_and_consume("generate_epoch_key", op_key):
+                raise PermissionError(f"Root operation generate_epoch_key refused: missing threshold quorum")
+        
         # DEV_KEY_NOT_PRODUCTION
         priv, pub = MLDSASigner.generate_keypair(self.sig_alg)
         self._epoch_keys[epoch_n] = (priv, pub)
@@ -104,7 +152,11 @@ class SoftwareKeyCustody(KeyCustody):
         return self._root_pub
 
     def sign_root(self, payload: bytes) -> bytes:
-        """Signs a payload using the master root private key (e.g., for registry snapshots)."""
+        """[Root] Signs a payload using the master root private key (e.g., for registry snapshots)."""
+        if self.threshold_policy:
+            op_key = hashlib.sha256(payload).hexdigest()
+            if not self.threshold_policy.check_and_consume("sign_root", op_key):
+                raise PermissionError(f"Root operation sign_root refused: missing threshold quorum")
         # DEV_KEY_NOT_PRODUCTION
         return MLDSASigner.sign(self.sig_alg, self._root_priv, payload)
 

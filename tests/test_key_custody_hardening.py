@@ -121,3 +121,102 @@ def test_no_private_key_stand_in_flow():
     
     res = verifier.verify_fast(token)
     assert res.status == "PASS"
+
+from kormic.crypto.software import ThresholdPolicy
+from kormic.runtime.detection import DevDetectionSink
+import hashlib
+
+def test_threshold_policy_refuses_single_party():
+    sink = DevDetectionSink()
+    policy = ThresholdPolicy(k=3, n=5, detection_sink=sink)
+    kc = SoftwareKeyCustody(threshold_policy=policy)
+    
+    op_key = f"generate_epoch_key_1"
+    policy.approve(op_key, "holder_1")
+    policy.approve(op_key, "holder_2")
+    # Only 2 of 3 approvals
+    
+    with pytest.raises(PermissionError) as exc:
+        kc.generate_epoch_key(1)
+        
+    assert "refused" in str(exc.value)
+    assert sink.events[-1].event_kind == "root_operation_refused"
+    assert sink.events[-1].severity == "critical"
+
+def test_threshold_policy_succeeds_with_quorum():
+    sink = DevDetectionSink()
+    policy = ThresholdPolicy(k=3, n=5, detection_sink=sink)
+    kc = SoftwareKeyCustody(threshold_policy=policy)
+    
+    op_key = f"generate_epoch_key_1"
+    policy.approve(op_key, "holder_1")
+    policy.approve(op_key, "holder_2")
+    policy.approve(op_key, "holder_3")
+    
+    # 3 of 3 approvals -> succeeds
+    kc.generate_epoch_key(1)
+    
+    assert sink.events[-1].event_kind == "root_operation_success"
+    assert sink.events[-1].severity == "info"
+    
+    # Check sign_root
+    payload = b"snapshot_data"
+    op_key2 = hashlib.sha256(payload).hexdigest()
+    policy.approve(op_key2, "holder_1")
+    policy.approve(op_key2, "holder_2")
+    policy.approve(op_key2, "holder_3")
+    
+    sig = kc.sign_root(payload)
+    assert sig is not None
+    assert sink.events[-1].event_kind == "root_operation_success"
+
+def test_threshold_custody_verification_identical():
+    # Setup Threshold
+    policy = ThresholdPolicy(k=1, n=1)
+    kc = SoftwareKeyCustody(threshold_policy=policy)
+    
+    # approve epoch generation
+    policy.approve(f"generate_epoch_key_1", "admin")
+    kc.generate_epoch_key(1)
+    
+    # Setup ordinary system
+    store = SQLiteRecordStore(":memory:")
+    central = CentralRegistryAuthority(kc)
+    
+    # disable threshold temporarily for snapshot setup convenience (since payload includes time)
+    kc.threshold_policy = None
+    snap = central.snapshot()
+    kc.threshold_policy = policy
+    
+    registry = RegionalReplicaRegistry("test", kc.get_root_public_key(), local_only=True)
+    registry.apply_snapshot(snap)
+    
+    manager = AgentManager(kc, store, default_epoch=1, registry_reader=registry)
+    verifier = Verifier(registry)
+    
+    agent_priv, agent_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+    ain, _ = manager.register_new_agent("CMP", "owner", "01", "real", {}, agent_pub.hex())
+    
+    ped_dict = store.get(ain)
+    ped = Pedigree.from_dict(ped_dict)
+    
+    challenge = "test"
+    import json
+    payload = json.dumps({'challenge': challenge, 'current_head': ped.running_head, 'fmt_ver': 1, 'sig_alg': 'ML-DSA-87'}, sort_keys=True).encode('utf-8')
+    sig = MLDSASigner.sign('ML-DSA-87', agent_priv, payload).hex()
+    
+    token = ProofToken(
+        agent_code=ain,
+        birth_record=ped.birth_record.to_dict(),
+        current_head=ped.running_head,
+        history_length=0,
+        freshness_timestamp=time.time(),
+        authority_reference="test",
+        challenge=challenge,
+        signature=sig,
+        sig_alg='ML-DSA-87',
+        fmt_ver=1
+    )
+    
+    res = verifier.verify_fast(token)
+    assert res.status == "PASS"

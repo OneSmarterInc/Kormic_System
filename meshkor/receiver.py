@@ -35,15 +35,29 @@ class ReceiverClient:
 
     def _emit_detection(self, token: ProofToken, kind: str, target: str, reason: str):
         if self.detection_sink:
+            severity = "warning"
+            if kind.startswith("reconnaissance_"):
+                severity = "critical"
+            elif "out_of_scope" not in kind:
+                severity = "info"
+                
+            if self.enforcement_mode == "advisory" and severity == "warning":
+                reason = f"{reason} (not blocked in advisory mode)"
+                
             ev = DetectionEvent(
                 event_kind=kind,
                 identity=token.agent_code,
                 action_target=target,
                 reason=reason,
                 mode=self.enforcement_mode,
-                timestamp=time.time()
+                timestamp=time.time(),
+                severity=severity,
+                session_id=token.challenge if token.challenge else "no-session"
             )
-            self.detection_sink.emit(ev)
+            try:
+                self.detection_sink.emit(ev)
+            except Exception:
+                pass
 
     def validate(self, token: ProofToken, action_type: str = "write", resource: Optional[str] = None) -> Verdict:
         """

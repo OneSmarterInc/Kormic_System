@@ -50,6 +50,8 @@ class Sandbox:
         self.recon_threshold = recon_threshold
         self.out_of_scope_targets = {}
         self._recon_emitted = False
+        self._last_digest_emitted = 0.0
+        self.digest_interval = 10.0
 
     def _evaporate_environment(self, declared_sensitive_keys: List[str] = None):
         """
@@ -76,15 +78,29 @@ class Sandbox:
 
     def _emit_detection(self, kind: str, target: str, reason: str):
         if self.detection_sink:
+            severity = "warning"
+            if kind.startswith("reconnaissance_"):
+                severity = "critical"
+            elif "out_of_scope" not in kind:
+                severity = "info"
+                
+            if self.enforcement_mode == "advisory" and severity == "warning":
+                reason = f"{reason} (not blocked in advisory mode)"
+                
             ev = DetectionEvent(
                 event_kind=kind,
                 identity=self.token.agent_code,
                 action_target=target,
                 reason=reason,
                 mode=self.enforcement_mode,
-                timestamp=time.time()
+                timestamp=time.time(),
+                severity=severity,
+                session_id=getattr(self.token, "challenge", "no-session")
             )
-            self.detection_sink.emit(ev)
+            try:
+                self.detection_sink.emit(ev)
+            except Exception:
+                pass
 
     def _track_recon(self, target: str):
         now = time.time()
@@ -92,9 +108,16 @@ class Sandbox:
         if target not in self.out_of_scope_targets:
             self.out_of_scope_targets[target] = now
             
-        if len(self.out_of_scope_targets) >= self.recon_threshold and not self._recon_emitted:
-            self._emit_detection("reconnaissance_breadth", f"{self.recon_threshold}_targets", "Reconnaissance breadth threshold crossed")
-            self._recon_emitted = True
+        count = len(self.out_of_scope_targets)
+        if count >= self.recon_threshold:
+            if not self._recon_emitted:
+                self._emit_detection("reconnaissance_breadth", f"{count}_targets", "Reconnaissance breadth threshold crossed")
+                self._recon_emitted = True
+                self._last_digest_emitted = now
+            else:
+                if now - self._last_digest_emitted >= self.digest_interval:
+                    self._emit_detection("reconnaissance_ongoing", f"{count}_targets", f"Ongoing reconnaissance: {count} targets in window")
+                    self._last_digest_emitted = now
 
     def check_egress(self, host: str) -> bool:
         if host not in self.allowed_egress and host not in ["127.0.0.1", "localhost", "0.0.0.0", "::1"]:
