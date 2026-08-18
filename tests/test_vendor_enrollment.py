@@ -59,9 +59,62 @@ class TestVendorEnrollment:
         self.replica.apply_snapshot(self.central.snapshot())
         assert self.replica.get_enrolled_vendor("acme") is None
 
-    def test_rotate_vendor_key_stub(self):
-        with pytest.raises(NotImplementedError):
-            self.central.rotate_vendor_key()
+    def test_rotate_vendor_key_success(self):
+        challenge_nonce = "test-nonce-1"
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof-domain-com", challenge_nonce)
+
+        new_priv, new_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_nonce2 = "test-nonce-2"
+        pos_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
+        auth_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce2}:acme:{new_pub.hex()}".encode('utf-8')).hex()
+
+        self.central.rotate_vendor_key("acme", new_pub.hex(), pos_sig, auth_sig, challenge_nonce2)
+        self.replica.apply_snapshot(self.central.snapshot())
+        
+        vendor = self.replica.get_enrolled_vendor("acme")
+        assert vendor.get('public_key') == new_pub.hex()
+        assert len(vendor.get('historical_keys', [])) == 1
+        assert vendor['historical_keys'][0]['public_key'] == self.vendor_pub_hex
+
+    def test_rotate_vendor_key_bad_auth(self):
+        challenge_nonce = "test-nonce-1"
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof-domain-com", challenge_nonce)
+
+        new_priv, new_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_nonce2 = "test-nonce-2"
+        pos_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
+        
+        # Wrong auth key (e.g. signed by new key instead of old key)
+        auth_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce2}:acme:{new_pub.hex()}".encode('utf-8')).hex()
+
+        with pytest.raises(ValueError, match="Authorization signature failed"):
+            self.central.rotate_vendor_key("acme", new_pub.hex(), pos_sig, auth_sig, challenge_nonce2)
+
+    def test_rotate_vendor_key_nonexistent_refused(self):
+        new_priv, new_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_nonce = "test-nonce-1"
+        pos_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce}:nobody".encode('utf-8')).hex()
+        # Fake auth sig
+        auth_sig = pos_sig
+
+        with pytest.raises(ValueError, match="not found"):
+            self.central.rotate_vendor_key("nobody", new_pub.hex(), pos_sig, auth_sig, challenge_nonce)
+
+    def test_rotate_vendor_key_revoked_refused(self):
+        challenge_nonce = "test-nonce-1"
+        possession_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        self.central.enroll_vendor("acme", self.vendor_pub_hex, possession_sig, "proof-domain-com", challenge_nonce)
+        self.central.revoke_vendor("acme")
+
+        new_priv, new_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        challenge_nonce2 = "test-nonce-2"
+        pos_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce2}:acme".encode('utf-8')).hex()
+        auth_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce2}:acme:{new_pub.hex()}".encode('utf-8')).hex()
+
+        with pytest.raises(ValueError, match="is not active"):
+            self.central.rotate_vendor_key("acme", new_pub.hex(), pos_sig, auth_sig, challenge_nonce2)
 
     def test_snapshot_provenance_tampering(self):
         challenge_nonce = "test-nonce-1"

@@ -31,6 +31,7 @@ class VendorEnrollment:
     sig_alg: str
     fmt_ver: int
     version: int
+    historical_keys: list = None
 
 @dataclass
 class PrincipalEnrollment:
@@ -196,8 +197,46 @@ class CentralRegistryAuthority:
         self.principals[principal_ref].status = VendorStatus.REVOKED
         self.version += 1
 
-    def rotate_vendor_key(self, *args, **kwargs):
-        raise NotImplementedError("rotate_vendor_key is stubbed out for this round.")
+    def rotate_vendor_key(self, entity_ref: str, new_public_key: str, possession_proof: str, auth_signature: str, challenge_nonce: str) -> None:
+        if challenge_nonce in self.spent_nonces:
+            raise ValueError("challenge nonce already used.")
+        if entity_ref not in self.vendors:
+            raise ValueError(f"Vendor '{entity_ref}' not found.")
+        vendor = self.vendors[entity_ref]
+        if vendor.status != VendorStatus.ACTIVE:
+            raise ValueError(f"Vendor '{entity_ref}' is not active.")
+            
+        # Verify possession proof (signed by new key)
+        possession_payload = f"{challenge_nonce}:{entity_ref}".encode("utf-8")
+        sig_alg = getattr(self.key_custody, "sig_alg", "ML-DSA-87")
+        try:
+            pos_sig = bytes.fromhex(possession_proof)
+            new_pub_bytes = bytes.fromhex(new_public_key)
+            if not MLDSASigner.verify(sig_alg, new_pub_bytes, possession_payload, pos_sig):
+                raise ValueError("Proof of possession failed.")
+        except Exception as e:
+            raise ValueError(f"Invalid proof of possession: {str(e)}")
+
+        # Verify auth signature (signed by old key)
+        auth_payload = f"{challenge_nonce}:{entity_ref}:{new_public_key}".encode("utf-8")
+        try:
+            auth_sig = bytes.fromhex(auth_signature)
+            old_pub_bytes = bytes.fromhex(vendor.public_key)
+            if not MLDSASigner.verify(vendor.sig_alg, old_pub_bytes, auth_payload, auth_sig):
+                raise ValueError("Authorization signature failed.")
+        except Exception as e:
+            raise ValueError(f"Invalid authorization signature: {str(e)}")
+
+        self.spend_nonce(challenge_nonce)
+
+        if vendor.historical_keys is None:
+            vendor.historical_keys = []
+        vendor.historical_keys.append({"public_key": vendor.public_key, "sig_alg": vendor.sig_alg})
+
+        self.version += 1
+        vendor.public_key = new_public_key
+        vendor.sig_alg = sig_alg
+        vendor.version = self.version
 
     def snapshot(self) -> RegistrySnapshot:
         self._purge_old_nonces()

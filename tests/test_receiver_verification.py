@@ -225,3 +225,23 @@ class TestReceiverArtifactVerification:
         verdict = self.receiver.verify_artifact(artifact_bytes, token, artifact_sig)
         assert verdict.ok is True
         assert verdict.status == "PASS"
+
+    def test_verify_back_catalog_after_rotation(self):
+        # 1. Mint a build with the original key
+        artifact_bytes = b"old-artifact-code"
+        token, artifact_sig = self._mint_build_ain("acme", self.vendor_priv, self.vendor_pub_hex, artifact_bytes)
+        
+        # 2. Rotate the vendor key
+        new_priv, new_pub = MLDSASigner.generate_keypair('ML-DSA-87')
+        new_pub_hex = new_pub.hex()
+        challenge_nonce = "test-rotation-nonce"
+        pos_sig = MLDSASigner.sign('ML-DSA-87', new_priv, f"{challenge_nonce}:acme".encode('utf-8')).hex()
+        auth_sig = MLDSASigner.sign('ML-DSA-87', self.vendor_priv, f"{challenge_nonce}:acme:{new_pub_hex}".encode('utf-8')).hex()
+        
+        self.central.rotate_vendor_key("acme", new_pub_hex, pos_sig, auth_sig, challenge_nonce)
+        self.replica.apply_snapshot(self.central.snapshot())
+        
+        # 3. Receiver should still verify the old artifact under the historical key
+        verdict = self.receiver.verify_artifact(artifact_bytes, token, artifact_sig)
+        assert verdict.ok is True
+        assert verdict.status == "PASS"

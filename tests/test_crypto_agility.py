@@ -530,7 +530,7 @@ def test_vendor_agility_downgrade():
     
     # Now try to register a BAIN
     store = SQLiteRecordStore(":memory:")
-    manager = AgentManager(kc, store, registry_reader=registry)
+    manager = AgentManager(key_custody=kc, record_store=store, registry_reader=registry)
     
     artifact_digest = "digest123"
     payload = ("vendorX" + "1" + artifact_digest).encode('utf-8')
