@@ -20,6 +20,9 @@ import time
 class ReceiverClient:
     """
     The Receiver Client used by APIs and Databases to validate an agent's access token.
+    Note for Integrators: When calling underlying verification APIs in `build_only` mode, 
+    you must verify that the `verified_scope` returned is what you expect (e.g. "build") 
+    so you don't mistake a partial build verification for a fully authenticated deployment.
     """
     def __init__(self, authority: Authority, detection_sink: DetectionSink = None, enforcement_mode: str = "enforced"):
         self.authority = authority

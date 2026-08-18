@@ -19,7 +19,8 @@ class Sandbox:
     """
     def __init__(self, verifier: Verifier, token: ProofToken, env: Dict[str, str] = None, 
                  detection_sink: DetectionSink = None, enforcement_mode: str = "enforced",
-                 recon_window: float = 60.0, recon_threshold: int = 5):
+                 recon_window: float = 60.0, recon_threshold: int = 5,
+                 declared_sensitive_keys: List[str] = None):
         self.verifier = verifier
         self.token = token
         
@@ -40,7 +41,7 @@ class Sandbox:
         # 4. Reconnaissance Countermeasures (Session-Scoped)
         self.secure_vault = {}
         self.session_env = dict(env) if env is not None else dict(os.environ)
-        self._evaporate_environment()
+        self._evaporate_environment(declared_sensitive_keys)
         
         # Detection Plane
         self.detection_sink = detection_sink
@@ -50,11 +51,24 @@ class Sandbox:
         self.out_of_scope_targets = {}
         self._recon_emitted = False
 
-    def _evaporate_environment(self):
+    def _evaporate_environment(self, declared_sensitive_keys: List[str] = None):
+        """
+        Best-effort heuristic keyword sweep to move secrets from environment to secure_vault.
+        For rigorous hygiene, deployments should provide a `declared_sensitive_keys` policy 
+        attesting exactly which keys contain secrets, rather than relying on the heuristic.
+        """
         sensitive_keywords = ["SECRET", "KEY", "TOKEN", "AWS", "PASSWORD", "CREDENTIAL"]
         keys_to_remove = []
         for k, v in self.session_env.items():
-            if any(kw in k.upper() for kw in sensitive_keywords):
+            is_sensitive = False
+            if declared_sensitive_keys is not None:
+                if k in declared_sensitive_keys:
+                    is_sensitive = True
+            else:
+                if any(kw in k.upper() for kw in sensitive_keywords):
+                    is_sensitive = True
+                    
+            if is_sensitive:
                 self.secure_vault[k] = v
                 keys_to_remove.append(k)
         for k in keys_to_remove:
@@ -117,6 +131,18 @@ class Sandbox:
             if self.enforcement_mode == "enforced":
                 raise PermissionError(f"BLOCKED: Endpoint '{endpoint}' not in sealed manifest. Cross-agent/shared-runtime reach denied.")
         return f"Endpoint {endpoint} reached"
+        
+    def read_information(self, category: str) -> str:
+        allowed_scopes = self.token.birth_record.get("read_scopes", [])
+        ok = category in allowed_scopes
+        self.action_log.append(("read", category, ok))
+        
+        if not ok:
+            self._emit_detection("out_of_scope_read", category, f"Information category '{category}' not in allowed read_scopes.")
+            self._track_recon(category)
+            if self.enforcement_mode == "enforced":
+                raise PermissionError(f"BLOCKED: Information category '{category}' not in allowed read_scopes.")
+        return f"Read {category} successful"
         
     def drift_detected(self) -> bool:
         return any(ok is False for _, _, ok in self.action_log)

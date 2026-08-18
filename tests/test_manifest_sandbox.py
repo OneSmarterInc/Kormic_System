@@ -41,14 +41,16 @@ class TestManifestSandbox(unittest.TestCase):
             "allowed_endpoints": ["api/v1/bank"],
             "credential_scopes": ["read:db", "refund:money"],
             "blast_radius": "Test boundaries",
-            "irreversible_scopes": ["refund:money"]
+            "irreversible_scopes": ["refund:money"],
+            "read_scopes": ["category:medical"]
         }
         
         # 3. Enroll Agent
         self.ain, _ = self.manager.register_new_agent(
             "CMP", "testowner", "0001", "realid", 
             self.manifest, 
-            agent_pub_key=self.agent_pub.hex()
+            agent_pub_key=self.agent_pub.hex(),
+            read_scopes=self.manifest.get("read_scopes")
         )
         
     def tearDown(self):
@@ -125,5 +127,38 @@ class TestManifestSandbox(unittest.TestCase):
         self.assertFalse(res["granted"])
         self.assertIn("Action requested is irreversible", res["reason"])
         
+    def test_sandbox_read_information_works(self):
+        token = self._get_valid_token()
+        box = Sandbox(self.verifier, token)
+        res = box.read_information("category:medical")
+        self.assertIn("successful", res)
+        self.assertFalse(box.drift_detected())
+
+    def test_sandbox_read_information_fails_out_of_manifest(self):
+        token = self._get_valid_token()
+        box = Sandbox(self.verifier, token)
+        with self.assertRaises(PermissionError) as context:
+            box.read_information("category:financial")
+        self.assertIn("BLOCKED", str(context.exception))
+        self.assertTrue(box.drift_detected())
+        
+    def test_evaporate_environment_declared_policy(self):
+        token = self._get_valid_token()
+        # Normally MONKEY_KEYBOARD would be evaporated because it has KEY.
+        # DB_DSN would not because it has none of the keywords.
+        env = {
+            "MONKEY_KEYBOARD": "banana",
+            "DB_DSN": "postgres://user:pass@localhost/db"
+        }
+        # Use declared policy
+        box = Sandbox(self.verifier, token, env=env, declared_sensitive_keys=["DB_DSN"])
+        
+        # DB_DSN should be in vault, MONKEY_KEYBOARD should be left alone
+        self.assertIn("DB_DSN", box.secure_vault)
+        self.assertNotIn("DB_DSN", box.session_env)
+        
+        self.assertIn("MONKEY_KEYBOARD", box.session_env)
+        self.assertNotIn("MONKEY_KEYBOARD", box.secure_vault)
+
 if __name__ == '__main__':
     unittest.main()
