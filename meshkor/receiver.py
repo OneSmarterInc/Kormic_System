@@ -103,6 +103,9 @@ class ReceiverClient:
         """
         Phase 6 Part D: Receiver-Side Artifact Verification.
         Verifies the Build AIN, the digest binding, and the vendor enrollment.
+        
+        WARNING: `verified_scope` is only for display/routing; enforcement relies entirely 
+        on the Sandbox/Token linkage.
         """
         verifier = self.authority.get_verifier()
         failed = False

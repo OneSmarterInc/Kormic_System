@@ -143,7 +143,28 @@ This phase strictly seals the "Reconnaissance Gap," where compromised agents cou
 - **Sealed Approval Chain:** The attested approval is cryptographically sealed inside the Build AIN's birth record, guaranteeing that receivers can verify the human approval directly from the cryptographic chain without trusting standard display names or checkboxes.
 - **High-Fidelity Detection Signals:** Any attempt to use a counterfeit, expired, or non-enrolled identity at the approval gate fires a structured, high-fidelity detection event.
 
+### 25. Detection Plane Consumability
+- **Structured Sinks:** The Sandbox routes all rule violations to pluggable `DetectionSink` interfaces (like JSONL files or remote Webhooks).
+- **Best-Effort Non-Blocking Emissions:** Sinks are strictly fire-and-forget. A timed-out webhook or broken disk will never crash the Sandbox or bypass the enforcement refusal.
+- **Enriched Threat Signals:** Detection events include standardized `severity` (info, warning, critical) and explicitly map to a `session_id` to correlate an attack chain.
+- **Ongoing Reconnaissance Digests:** If a compromised agent continually probes out-of-scope targets, the system emits a repeated "Ongoing Reconnaissance" critical digest, preventing alerting fatigue while ensuring attacks are never silenced after the first alert.
+
+### 26. Software Tier Key Custody Thresholding
+- **Root Operations Gating:** Routine operations (like agent birth) remain single-party. Existential "Root" operations (like generating epoch keys or capturing registry snapshots) are mathematically gated behind a Shamir Secret Sharing `k-of-n` quorum.
+- **Cryptographic Ballot Box:** To satisfy a quorum, human holders must submit an ML-DSA-87 signature over the specific operation payload. Unsigned approvals, fake identities, or repeated single-party votes are instantly rejected.
+- **Production Invariant:** The architecture explicitly declares that a threshold policy is mandatory in production deployments. Hardware custody integrations inherit this rule, ensuring single-party root keys never exist in live commercial environments.
+
 ---
+
+## Phase 7 Features (Vendor Key Rotation & Back Catalog)
+This module introduces complete Cryptographic Agility at the entity level, allowing vendors to rotate compromised keys without destroying the existing ecosystem of active agents.
+
+### 27. Dual-Signature Handshake
+- **Secure Handoff:** Vendors rotating a key must supply a payload dual-signed by both the *old* (revoked) key and the *new* key, proving both the intent to hand over authority and mathematical possession of the new key.
+- **Automated Roll-Over:** The Central Registry automatically demotes the old key to the `historical_keys` list and stamps the new key as active, bumping the vendor's replication version.
+
+### 28. Back-Catalog Preservation
+- **Seamless Receiver Verification:** When a receiver node validates a `DAIN` derived from a `BAIN` issued years ago under a rotated key, the verification engine dynamically searches the vendor's `historical_keys` catalog. The agent's historical signature remains valid, preserving the lifetime of existing deployments without trusting compromised keys for *new* issuances.
 
 ## Getting Started & Demos
 

@@ -10,13 +10,27 @@ from kormic.utils.exceptions import CryptographicError
 from kormic.runtime.detection import DetectionSink, DetectionEvent
 
 class ThresholdPolicy:
-    def __init__(self, k: int, n: int, detection_sink: DetectionSink = None):
+    def __init__(self, k: int, n: int, enrolled_holders: Dict[str, bytes] = None, detection_sink: DetectionSink = None):
         self.k = k
         self.n = n
+        self.enrolled_holders = enrolled_holders or {}
         self.detection_sink = detection_sink
         self.approvals = defaultdict(set) # operation_key -> set of holder_ids
         
-    def approve(self, op_key: str, holder_id: str):
+    def approve(self, op_key: str, holder_id: str, signature: bytes = None):
+        """
+        Records an approval. The approval must carry a cryptographic proof that the approver
+        holds a genuine share (a signature over the op_key by the holder's key).
+        """
+        if holder_id not in self.enrolled_holders:
+            raise PermissionError(f"Holder {holder_id} is not enrolled in the threshold policy.")
+        if not signature:
+            raise PermissionError("Unsigned approvals are rejected.")
+            
+        pub_key = self.enrolled_holders[holder_id]
+        if not MLDSASigner.verify("ML-DSA-87", pub_key, op_key.encode('utf-8'), signature):
+            raise PermissionError(f"Invalid signature for holder {holder_id}.")
+            
         self.approvals[op_key].add(holder_id)
         
     def check_and_consume(self, op_name: str, op_key: str) -> bool:
@@ -70,6 +84,9 @@ class SoftwareKeyCustody(KeyCustody):
     """
     Software implementation of KeyCustody for Phase 1.
     All keys are held in memory. Real HSM/threshold isolation is swapped in Phase 3.
+    
+    PRODUCTION INVARIANT: `SoftwareKeyCustody` is disabled in production. Future hardware
+    backends must explicitly enforce that `threshold_policy` is not None.
     """
     def __init__(self, sig_alg: str = "ML-DSA-87", hash_alg: str = "SHA-256", threshold_policy: ThresholdPolicy = None):
         if os.environ.get("KORMIC_DEPLOYMENT_MODE", "").lower() == "production":

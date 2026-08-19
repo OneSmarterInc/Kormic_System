@@ -15,6 +15,10 @@ class KeyCustody(Protocol):
     Capability interface for cryptography and secure key operations.
     Satisfies Section 4.3. Interface remains identical for software (Phase 1) and hardware/HSM (Phase 3).
     
+    PRODUCTION INVARIANT: Root capability (sign_root, generate_epoch_key) without a threshold 
+    policy is impossible in production. Hardware backends must inherit and enforce this rule.
+
+    
     Operations are explicitly classified into two tiers:
     - Routine: `sign_birth`. Happens constantly, per agent enrollment. Single-party.
     - Root: `sign_root`, `generate_epoch_key`. Rare, catastrophic if abused. Threshold-gated.

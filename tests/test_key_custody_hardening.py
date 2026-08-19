@@ -128,12 +128,20 @@ import hashlib
 
 def test_threshold_policy_refuses_single_party():
     sink = DevDetectionSink()
-    policy = ThresholdPolicy(k=3, n=5, detection_sink=sink)
+    h1_priv, h1_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    h2_priv, h2_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    
+    enrolled = {"holder_1": h1_pub, "holder_2": h2_pub}
+    policy = ThresholdPolicy(k=3, n=5, enrolled_holders=enrolled, detection_sink=sink)
     kc = SoftwareKeyCustody(threshold_policy=policy)
     
     op_key = f"generate_epoch_key_1"
-    policy.approve(op_key, "holder_1")
-    policy.approve(op_key, "holder_2")
+    
+    h1_sig = MLDSASigner.sign("ML-DSA-87", h1_priv, op_key.encode('utf-8'))
+    h2_sig = MLDSASigner.sign("ML-DSA-87", h2_priv, op_key.encode('utf-8'))
+    
+    policy.approve(op_key, "holder_1", h1_sig)
+    policy.approve(op_key, "holder_2", h2_sig)
     # Only 2 of 3 approvals
     
     with pytest.raises(PermissionError) as exc:
@@ -143,15 +151,44 @@ def test_threshold_policy_refuses_single_party():
     assert sink.events[-1].event_kind == "root_operation_refused"
     assert sink.events[-1].severity == "critical"
 
+def test_threshold_policy_rejects_unsigned_or_invalid_approvals():
+    sink = DevDetectionSink()
+    h1_priv, h1_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    
+    enrolled = {"holder_1": h1_pub}
+    policy = ThresholdPolicy(k=1, n=1, enrolled_holders=enrolled, detection_sink=sink)
+    
+    op_key = "generate_epoch_key_1"
+    
+    # Missing signature
+    with pytest.raises(PermissionError, match="Unsigned"):
+        policy.approve(op_key, "holder_1")
+        
+    # Fabricated holder
+    with pytest.raises(PermissionError, match="not enrolled"):
+        policy.approve(op_key, "fake_holder", b"bad_sig")
+        
+    # Invalid signature
+    h2_priv, _ = MLDSASigner.generate_keypair("ML-DSA-87")
+    bad_sig = MLDSASigner.sign("ML-DSA-87", h2_priv, op_key.encode('utf-8'))
+    with pytest.raises(PermissionError, match="Invalid signature"):
+        policy.approve(op_key, "holder_1", bad_sig)
+
 def test_threshold_policy_succeeds_with_quorum():
     sink = DevDetectionSink()
-    policy = ThresholdPolicy(k=3, n=5, detection_sink=sink)
+    h1_priv, h1_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    h2_priv, h2_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    h3_priv, h3_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    
+    enrolled = {"holder_1": h1_pub, "holder_2": h2_pub, "holder_3": h3_pub}
+    policy = ThresholdPolicy(k=3, n=5, enrolled_holders=enrolled, detection_sink=sink)
     kc = SoftwareKeyCustody(threshold_policy=policy)
     
     op_key = f"generate_epoch_key_1"
-    policy.approve(op_key, "holder_1")
-    policy.approve(op_key, "holder_2")
-    policy.approve(op_key, "holder_3")
+    
+    policy.approve(op_key, "holder_1", MLDSASigner.sign("ML-DSA-87", h1_priv, op_key.encode('utf-8')))
+    policy.approve(op_key, "holder_2", MLDSASigner.sign("ML-DSA-87", h2_priv, op_key.encode('utf-8')))
+    policy.approve(op_key, "holder_3", MLDSASigner.sign("ML-DSA-87", h3_priv, op_key.encode('utf-8')))
     
     # 3 of 3 approvals -> succeeds
     kc.generate_epoch_key(1)
@@ -162,21 +199,26 @@ def test_threshold_policy_succeeds_with_quorum():
     # Check sign_root
     payload = b"snapshot_data"
     op_key2 = hashlib.sha256(payload).hexdigest()
-    policy.approve(op_key2, "holder_1")
-    policy.approve(op_key2, "holder_2")
-    policy.approve(op_key2, "holder_3")
+    
+    policy.approve(op_key2, "holder_1", MLDSASigner.sign("ML-DSA-87", h1_priv, op_key2.encode('utf-8')))
+    policy.approve(op_key2, "holder_2", MLDSASigner.sign("ML-DSA-87", h2_priv, op_key2.encode('utf-8')))
+    policy.approve(op_key2, "holder_3", MLDSASigner.sign("ML-DSA-87", h3_priv, op_key2.encode('utf-8')))
     
     sig = kc.sign_root(payload)
     assert sig is not None
     assert sink.events[-1].event_kind == "root_operation_success"
 
 def test_threshold_custody_verification_identical():
+    h_priv, h_pub = MLDSASigner.generate_keypair("ML-DSA-87")
+    enrolled = {"admin": h_pub}
+    
     # Setup Threshold
-    policy = ThresholdPolicy(k=1, n=1)
+    policy = ThresholdPolicy(k=1, n=1, enrolled_holders=enrolled)
     kc = SoftwareKeyCustody(threshold_policy=policy)
     
     # approve epoch generation
-    policy.approve(f"generate_epoch_key_1", "admin")
+    op_key = f"generate_epoch_key_1"
+    policy.approve(op_key, "admin", MLDSASigner.sign("ML-DSA-87", h_priv, op_key.encode('utf-8')))
     kc.generate_epoch_key(1)
     
     # Setup ordinary system
