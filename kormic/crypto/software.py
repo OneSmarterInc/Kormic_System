@@ -9,6 +9,12 @@ from Crypto.Protocol.SecretSharing import Shamir
 from kormic.utils.exceptions import CryptographicError
 from kormic.runtime.detection import DetectionSink, DetectionEvent
 
+# DEV SEAM: This class is currently a dev-grade seam, not a hardened quorum.
+# Phase 3 Hardening Requirements:
+# 1. Nonce-binding: Approvals must be bound to a fresh, single-use challenge (nonce), 
+#    and the operation key must carry this challenge to prevent replay attacks.
+# 2. Allowlist checking: The approve path must run the algorithm through the 
+#    CryptoAgility allowlist rather than hardcoding it.
 class ThresholdPolicy:
     def __init__(self, k: int, n: int, enrolled_holders: Dict[str, bytes] = None, detection_sink: DetectionSink = None):
         self.k = k

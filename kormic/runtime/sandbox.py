@@ -16,6 +16,10 @@ class Sandbox:
     Kormic Runtime Sandbox Wrapper.
     Enforces C1 (Manifest Isolation).
     Any action outside the manifest is blocked and logged.
+    
+    WARNING: If `declared_sensitive_keys` is provided, it completely replaces the default 
+    heuristic keyword sweep. The provided list must be complete; a half-filled policy is 
+    more dangerous than no policy because it turns the heuristic off.
     """
     def __init__(self, verifier: Verifier, token: ProofToken, env: Dict[str, str] = None, 
                  detection_sink: DetectionSink = None, enforcement_mode: str = "enforced",
@@ -57,7 +61,10 @@ class Sandbox:
         """
         Best-effort heuristic keyword sweep to move secrets from environment to secure_vault.
         For rigorous hygiene, deployments should provide a `declared_sensitive_keys` policy 
-        attesting exactly which keys contain secrets, rather than relying on the heuristic.
+        attesting exactly which keys contain secrets.
+        
+        WARNING: If `declared_sensitive_keys` is provided, it must be complete. It is 
+        authoritative and turns the heuristic keyword sweep off entirely.
         """
         sensitive_keywords = ["SECRET", "KEY", "TOKEN", "AWS", "PASSWORD", "CREDENTIAL"]
         keys_to_remove = []

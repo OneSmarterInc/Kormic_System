@@ -209,6 +209,8 @@ class CentralRegistryAuthority:
         # Verify possession proof (signed by new key)
         possession_payload = f"{challenge_nonce}:{entity_ref}".encode("utf-8")
         sig_alg = getattr(self.key_custody, "sig_alg", "ML-DSA-87")
+        from kormic.crypto.agility import require_allowed_algorithm
+        require_allowed_algorithm(sig_alg)
         try:
             pos_sig = bytes.fromhex(possession_proof)
             new_pub_bytes = bytes.fromhex(new_public_key)
