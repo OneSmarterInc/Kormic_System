@@ -11,8 +11,10 @@ from kormic.manager import AgentManager
 from kormic.models.verify import ProofToken
 from kormic.runtime.sandbox import Sandbox
 from kormic.crypto.algorithms import MLDSASigner
+from kormic.models.pedigree import Pedigree
 from meshkor.authority import LocalAuthority
 from meshkor.receiver import ReceiverClient
+import json
 
 def run_demo():
     print("==========================================================")
@@ -91,18 +93,25 @@ def run_demo():
     receiver = ReceiverClient(authority)
     
     ped_dict = store.get(dain_res.agent_code)
-    bain_ped_dict = store.get(bain_res.agent_code)
+    ped = Pedigree.from_dict(ped_dict)
     t_nonce = verifier.generate_challenge()
-    t_sig = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce).encode()).hex()
+    payload = json.dumps({
+        "current_head": ped.running_head,
+        "challenge": t_nonce,
+        "sig_alg": 'ML-DSA-87',
+        "fmt_ver": 1
+    }, sort_keys=True).encode('utf-8')
+    t_sig = MLDSASigner.sign('ML-DSA-87', vpriv, payload).hex()
     
+    bain_ped_dict = store.get(bain_res.agent_code)
     token = ProofToken(
         agent_code=dain_res.agent_code,
-        birth_record=ped_dict["birth_record"],
-        current_head="head",
+        birth_record=ped.birth_record.to_dict(),
+        parent_birth_record=bain_ped_dict["birth_record"],
+        current_head=ped.running_head,
         history_length=0,
         freshness_timestamp=time.time(),
         authority_reference="test",
-        parent_birth_record=bain_ped_dict["birth_record"],
         challenge=t_nonce,
         signature=t_sig,
         sig_alg='ML-DSA-87', fmt_ver=1
@@ -148,11 +157,18 @@ def run_demo():
     
     print("\n[+] Rogue Agent generates a fresh ProofToken to scrape unauthorized r/politics...")
     t_nonce_politics = verifier.generate_challenge()
-    t_sig_politics = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce_politics).encode()).hex()
+    payload_politics = json.dumps({
+        "current_head": ped.running_head,
+        "challenge": t_nonce_politics,
+        "sig_alg": 'ML-DSA-87',
+        "fmt_ver": 1
+    }, sort_keys=True).encode('utf-8')
+    t_sig_politics = MLDSASigner.sign('ML-DSA-87', vpriv, payload_politics).hex()
+    
     token_politics = ProofToken(
         agent_code=dain_res.agent_code,
-        birth_record=ped_dict["birth_record"],
-        current_head="head",
+        birth_record=ped.birth_record.to_dict(),
+        current_head=ped.running_head,
         history_length=0,
         freshness_timestamp=time.time(),
         authority_reference="test",
@@ -170,12 +186,18 @@ def run_demo():
 
     print("\n[+] Agent generates a FRESH ProofToken to scrape authorized r/changemyview...")
     t_nonce_2 = verifier.generate_challenge()
-    t_sig_2 = MLDSASigner.sign('ML-DSA-87', vpriv, ("head" + t_nonce_2).encode()).hex()
+    payload_2 = json.dumps({
+        "current_head": ped.running_head,
+        "challenge": t_nonce_2,
+        "sig_alg": 'ML-DSA-87',
+        "fmt_ver": 1
+    }, sort_keys=True).encode('utf-8')
+    t_sig_2 = MLDSASigner.sign('ML-DSA-87', vpriv, payload_2).hex()
     
     token_2 = ProofToken(
         agent_code=dain_res.agent_code,
-        birth_record=ped_dict["birth_record"],
-        current_head="head",
+        birth_record=ped.birth_record.to_dict(),
+        current_head=ped.running_head,
         history_length=0,
         freshness_timestamp=time.time(),
         authority_reference="test",

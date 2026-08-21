@@ -1,5 +1,7 @@
 # Kormic Agent Pedigree System
 
+> **New to Kormic?** Start with the [Quickstart Guide](docs/QUICKSTART.md) to get your first verified agent running in minutes.
+
 Welcome to the Kormic Agent Pedigree and Trust Architecture. This repository houses the core modules ensuring agent authenticity, structured identity, tamper-evident history, correctness monitoring, and catastrophic recovery at a global scale.
 
 ## Architecture Status
