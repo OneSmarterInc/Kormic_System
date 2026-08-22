@@ -27,7 +27,7 @@ class KeyCustody(Protocol):
         """[Routine] Signs the birth record payload using the designated epoch private key."""
         ...
 
-    def sign_root(self, payload: bytes) -> bytes:
+    def sign_root(self, payload: bytes, challenge_nonce: str = None) -> bytes:
         """[Root] Signs a payload using the master root private key (e.g., for registry snapshots)."""
         ...
 
@@ -35,7 +35,7 @@ class KeyCustody(Protocol):
         """Returns the master root public verification key."""
         ...
 
-    def generate_epoch_key(self, epoch_n: int) -> None:
+    def generate_epoch_key(self, epoch_n: int, challenge_nonce: str = None) -> None:
         """[Root] Generates a new epoch keypair and certifies it with the root key."""
         ...
 

@@ -65,15 +65,16 @@ def test_golden_path():
     keys = SoftwareKeyCustody(threshold_policy=threshold_policy)
     
     # 9. Threshold Root Operation (Done early to bootstrap epoch)
-    op_key = "generate_epoch_key_1"
-    threshold_policy.approve(op_key, "exec1", MLDSASigner.sign('ML-DSA-87', h1_priv, op_key.encode('utf-8')))
+    challenge = "nonce_golden"
+    op_key = f"generate_epoch_key_1:{challenge}"
+    threshold_policy.approve(op_key, "exec1", MLDSASigner.sign('ML-DSA-87', h1_priv, op_key.encode('utf-8')), challenge)
     # Assert single-party refused
     with pytest.raises(PermissionError):
-        keys.generate_epoch_key(1)
+        keys.generate_epoch_key(1, challenge)
     
-    threshold_policy.approve(op_key, "exec2", MLDSASigner.sign('ML-DSA-87', h2_priv, op_key.encode('utf-8')))
+    threshold_policy.approve(op_key, "exec2", MLDSASigner.sign('ML-DSA-87', h2_priv, op_key.encode('utf-8')), challenge)
     # Now it succeeds
-    keys.generate_epoch_key(1)
+    keys.generate_epoch_key(1, challenge)
     assert sink.events[-1].event_kind == "root_operation_success"
     
     store = SQLiteRecordStore(db_path)

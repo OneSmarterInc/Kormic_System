@@ -1,7 +1,7 @@
 import os
 import hashlib
 import time
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 from collections import defaultdict
 from kormic.interfaces.keys import KeyCustody, Share
 from kormic.crypto.algorithms import MLDSASigner
@@ -16,14 +16,15 @@ from kormic.runtime.detection import DetectionSink, DetectionEvent
 # 2. Allowlist checking: The approve path must run the algorithm through the 
 #    CryptoAgility allowlist rather than hardcoding it.
 class ThresholdPolicy:
-    def __init__(self, k: int, n: int, enrolled_holders: Dict[str, bytes] = None, detection_sink: DetectionSink = None):
+    def __init__(self, k: int, n: int, enrolled_holders: Dict[str, Any] = None, detection_sink: DetectionSink = None):
         self.k = k
         self.n = n
         self.enrolled_holders = enrolled_holders or {}
         self.detection_sink = detection_sink
         self.approvals = defaultdict(set) # operation_key -> set of holder_ids
+        self.spent_nonces = set()
         
-    def approve(self, op_key: str, holder_id: str, signature: bytes = None):
+    def approve(self, op_key: str, holder_id: str, signature: bytes, challenge_nonce: str):
         """
         Records an approval. The approval must carry a cryptographic proof that the approver
         holds a genuine share (a signature over the op_key by the holder's key).
@@ -33,16 +34,33 @@ class ThresholdPolicy:
         if not signature:
             raise PermissionError("Unsigned approvals are rejected.")
             
-        pub_key = self.enrolled_holders[holder_id]
-        if not MLDSASigner.verify("ML-DSA-87", pub_key, op_key.encode('utf-8'), signature):
+        if challenge_nonce in self.spent_nonces:
+            raise PermissionError("Challenge nonce already spent.")
+            
+        holder_info = self.enrolled_holders[holder_id]
+        if isinstance(holder_info, bytes):
+            pub_key = holder_info
+            sig_alg = "ML-DSA-87"
+        else:
+            pub_key = holder_info["public_key"]
+            sig_alg = holder_info["sig_alg"]
+            
+        from kormic.crypto.agility import require_allowed_algorithm
+        require_allowed_algorithm(sig_alg)
+            
+        if not MLDSASigner.verify(sig_alg, pub_key, op_key.encode('utf-8'), signature):
             raise PermissionError(f"Invalid signature for holder {holder_id}.")
             
         self.approvals[op_key].add(holder_id)
         
-    def check_and_consume(self, op_name: str, op_key: str) -> bool:
+    def check_and_consume(self, op_name: str, op_key: str, challenge_nonce: str) -> bool:
+        if challenge_nonce in self.spent_nonces:
+            raise PermissionError("Challenge nonce already spent.")
+            
         holders = self.approvals.get(op_key, set())
         if len(holders) >= self.k:
             del self.approvals[op_key]
+            self.spent_nonces.add(challenge_nonce)
             if self.detection_sink:
                 self.detection_sink.emit(DetectionEvent(
                     event_kind="root_operation_success",
@@ -114,14 +132,16 @@ class SoftwareKeyCustody(KeyCustody):
         # Revoked epochs set
         self._revoked_epochs = set()
 
-    def generate_epoch_key(self, epoch_n: int) -> None:
+    def generate_epoch_key(self, epoch_n: int, challenge_nonce: str = None) -> None:
         """
         [Root] Generates and signs a certificate for a new epoch using the Root key.
         Satisfies Section 5.5 & 6.
         """
         if self.threshold_policy:
-            op_key = f"generate_epoch_key_{epoch_n}"
-            if not self.threshold_policy.check_and_consume("generate_epoch_key", op_key):
+            if not challenge_nonce:
+                raise PermissionError("Threshold policy requires a challenge_nonce")
+            op_key = f"generate_epoch_key_{epoch_n}:{challenge_nonce}"
+            if not self.threshold_policy.check_and_consume("generate_epoch_key", op_key, challenge_nonce):
                 raise PermissionError(f"Root operation generate_epoch_key refused: missing threshold quorum")
         
         # DEV_KEY_NOT_PRODUCTION
@@ -174,11 +194,14 @@ class SoftwareKeyCustody(KeyCustody):
     def get_root_public_key(self) -> bytes:
         return self._root_pub
 
-    def sign_root(self, payload: bytes) -> bytes:
+    def sign_root(self, payload: bytes, challenge_nonce: str = None) -> bytes:
         """[Root] Signs a payload using the master root private key (e.g., for registry snapshots)."""
         if self.threshold_policy:
-            op_key = hashlib.sha256(payload).hexdigest()
-            if not self.threshold_policy.check_and_consume("sign_root", op_key):
+            if not challenge_nonce:
+                raise PermissionError("Threshold policy requires a challenge_nonce")
+            payload_hash = hashlib.sha256(payload).hexdigest()
+            op_key = f"sign_root:{payload_hash}:{challenge_nonce}"
+            if not self.threshold_policy.check_and_consume("sign_root", op_key, challenge_nonce):
                 raise PermissionError(f"Root operation sign_root refused: missing threshold quorum")
         # DEV_KEY_NOT_PRODUCTION
         return MLDSASigner.sign(self.sig_alg, self._root_priv, payload)
