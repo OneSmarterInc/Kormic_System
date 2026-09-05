@@ -49,7 +49,8 @@ class LocalAuthority(Authority):
             agent_type, entity_ref, instance, real_world_id, manifest, agent_pub_key=agent_pub_key
         )
         # In the local engine, we must apply the snapshot so the regional replica knows about the new agent
-        self._regional_replica.apply_snapshot(self._central_registry.snapshot())
+        if self._central_registry and hasattr(self._regional_replica, 'apply_snapshot'):
+            self._regional_replica.apply_snapshot(self._central_registry.snapshot())
         return ain
 
     def get_pedigree(self, ain: str) -> dict:

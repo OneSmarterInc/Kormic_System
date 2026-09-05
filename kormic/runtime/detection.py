@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional, List
 import time
 import json
 import urllib.request
@@ -38,6 +39,32 @@ class DevDetectionSink(DetectionSink):
         
     def emit(self, event: DetectionEvent):
         self.events.append(event)
+        
+    def get_events(self) -> List[DetectionEvent]:
+        return self.events
+
+class SlackDetectionSink(DetectionSink):
+    def __init__(self, webhook_url: str):
+        self.webhook_url = webhook_url
+        import requests
+        self.requests = requests
+
+    def emit(self, event: DetectionEvent):
+        color = "#ff0000" if event.severity == "critical" else "#ffa500" if event.severity == "high" else "#00ff00"
+        payload = {
+            "attachments": [
+                {
+                    "fallback": f"MeshKor Alert: {event.event_kind}",
+                    "color": color,
+                    "title": f"MeshKor Alert: {event.event_kind}",
+                    "text": f"*AIN:* {event.agent_code}\n*Reason:* {event.reason}\n*Severity:* {event.severity}",
+                }
+            ]
+        }
+        try:
+            self.requests.post(self.webhook_url, json=payload, timeout=2.0)
+        except Exception:
+            pass # Fire and forget
 
 class JsonlDetectionSink(DetectionSink):
     def __init__(self, path: str):
