@@ -128,11 +128,31 @@ def download_twin(ain: str, token: str):
 def get_root_key():
     return {"root_pub": keys.get_root_public_key().hex()}
 
-@app.get("/test_keys")
-def get_test_keys():
-    # Only for testing! This gives the sidecar the epoch keys so it can enroll agents locally
-    priv, pub = keys._epoch_keys[1]
-    return {"epoch": 1, "priv": priv.hex(), "pub": pub.hex()}
+class EnrollRequest(BaseModel):
+    agent_type: str
+    entity_ref: str
+    instance: str
+    real_world_id: str
+    manifest: dict
+    agent_pub_key: str = ""
+
+@app.post("/enroll")
+def enroll_agent(req: EnrollRequest):
+    # HQ signs the birth record locally, holding the private key safely in the cloud
+    from kormic.manager import AgentManager
+    from kormic.storage.memory import MemoryRecordStore
+    from kormic.models.identity import Pedigree
+    
+    # We use a temporary MemoryRecordStore just to run the generation logic.
+    # We don't persist it in HQ memory because the sidecar owns the operational history.
+    temp_manager = AgentManager(keys, MemoryRecordStore(), default_epoch=1, registry_reader=central)
+    ain, _ = temp_manager.register_new_agent(
+        req.agent_type, req.entity_ref, req.instance, req.real_world_id, req.manifest, agent_pub_key=req.agent_pub_key
+    )
+    
+    # Extract the signed pedigree to send back
+    pedigree_dict = temp_manager.record_store.get(ain)
+    return {"ain": ain, "pedigree": pedigree_dict}
 
 def start_hq(port: int = 8080):
     uvicorn.run("meshkor.hq_server:app", host="0.0.0.0", port=port, reload=False)

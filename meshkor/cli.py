@@ -1,6 +1,6 @@
 import argparse
 from meshkor.sidecar_daemon import serve
-from meshkor.authority import LocalAuthority
+from meshkor.authority import HQBackedAuthority
 from kormic.registry.distributed import RegionalReplicaRegistry
 from kormic.crypto.software import SoftwareKeyCustody
 from kormic.verify.engine import Verifier
@@ -29,17 +29,15 @@ def start_sidecar():
     except Exception as e:
         print(f"Warning: Could not sync with HQ on boot: {e}")
         
-    # 3. Setup Sidecar Engine
-    # For testing, we fetch the epoch private key from HQ so the sidecar can act as an authority
+    # 3. Setup Sidecar Engine (Holds NO private keys)
     key_custody = SoftwareKeyCustody()
-    epoch, priv, pub = hq_client.fetch_test_keys()
-    key_custody._epoch_keys[epoch] = (priv, pub)
+    # The Sidecar uses KeyCustody strictly for PUBLIC key operations (Verification)
     
     manager = AgentManager(key_custody, SQLiteRecordStore(args.db_path), default_epoch=1, registry_reader=replica)
-    local_auth = LocalAuthority(manager, Verifier(replica), None, replica)
+    hq_auth = HQBackedAuthority(manager, Verifier(replica), hq_client)
     
     # 4. Start gRPC Server
-    serve(local_auth, args.port)
+    serve(hq_auth, args.port)
 
 if __name__ == "__main__":
     start_sidecar()

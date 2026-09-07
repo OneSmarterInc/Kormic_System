@@ -48,9 +48,44 @@ class LocalAuthority(Authority):
         ain, _ = self._manager.register_new_agent(
             agent_type, entity_ref, instance, real_world_id, manifest, agent_pub_key=agent_pub_key
         )
-        # In the local engine, we must apply the snapshot so the regional replica knows about the new agent
         if self._central_registry and hasattr(self._regional_replica, 'apply_snapshot'):
             self._regional_replica.apply_snapshot(self._central_registry.snapshot())
+        return ain
+
+    def get_pedigree(self, ain: str) -> dict:
+        return self._manager.record_store.get(ain)
+
+    def record_event(self, ain: str, event_description: str) -> str:
+        self._manager.add_event(ain, event_description)
+        ped = self._manager.record_store.get(ain)
+        return ped['running_head']
+
+    def get_verifier(self):
+        return self._verifier
+
+    def issue_challenge(self) -> str:
+        return self._verifier.generate_challenge()
+
+
+class HQBackedAuthority(Authority):
+    """
+    Production Sidecar Authority.
+    Uses an HQClient to enroll agents remotely, holding NO private keys.
+    """
+    def __init__(self, manager, verifier, hq_client):
+        self._manager = manager
+        self._verifier = verifier
+        self._hq_client = hq_client
+        
+    def enroll_pubkey(self, agent_type: str, entity_ref: str, instance: str, 
+                      real_world_id: str, manifest: dict, agent_pub_key: str) -> str:
+        # Request HQ to sign the birth record! (Private keys stay in the cloud)
+        res = self._hq_client.enroll_agent(agent_type, entity_ref, instance, real_world_id, manifest, agent_pub_key)
+        ain = res["ain"]
+        pedigree_dict = res["pedigree"]
+        
+        # Store the signed pedigree in our local replica database
+        self._manager.record_store.put(ain, pedigree_dict)
         return ain
 
     def get_pedigree(self, ain: str) -> dict:
