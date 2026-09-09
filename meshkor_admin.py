@@ -231,6 +231,46 @@ def agent_operations():
             time.sleep(1.5)
             console.print("[bold red]Global Revocation Order Signed and Broadcasted![/bold red]\n")
 
+def view_governance():
+    try:
+        # We can just fetch it from SQLite locally since admin console runs on the HQ machine
+        # or we could make an HTTP endpoint. For simplicity/speed in this CLI, we will query DB directly.
+        import meshkor.hq_db as db
+        import sqlite3
+        conn = sqlite3.connect("hq_kormic.db")
+        c = conn.cursor()
+        
+        # Registry
+        c.execute("SELECT agent_class, data_touched, who_may_call, status FROM registry")
+        reg_rows = c.fetchall()
+        
+        t1 = Table(title="Phase 1 Governance: Agent Registry")
+        t1.add_column("Agent Class", style="cyan")
+        t1.add_column("Data Touched", style="yellow")
+        t1.add_column("Who May Call", style="magenta")
+        t1.add_column("Status", style="green")
+        for r in reg_rows:
+            t1.add_row(r[0], r[1], r[2], r[3])
+        console.print(t1)
+        
+        # Capability Requests
+        c.execute("SELECT id, agent_class, verdict, timestamp FROM capability_requests")
+        cap_rows = c.fetchall()
+        
+        t2 = Table(title="Capability Requests Log")
+        t2.add_column("ID", style="dim")
+        t2.add_column("Agent Class", style="cyan")
+        t2.add_column("Verdict", style="bold red")
+        for r in cap_rows:
+            t2.add_row(str(r[0]), r[1], r[2])
+        console.print(t2)
+        
+        conn.close()
+    except Exception as e:
+        console.print(f"[bold red]Could not load Governance tables: {e}[/bold red]")
+        
+    questionary.press_any_key_to_continue("Press any key to return...").ask()
+
 def main_menu():
     while True:
         choice = questionary.select(
@@ -238,6 +278,7 @@ def main_menu():
             choices=[
                 " Agents Operations",
                 " Recovery Twins",
+                " Phase 1 Governance (Registry)",
                 " Cryptographic Keys",
                 " Exit Admin Mode"
             ]
@@ -250,6 +291,8 @@ def main_menu():
             agent_operations()
         elif choice == " Recovery Twins":
             view_twins()
+        elif choice == " Phase 1 Governance (Registry)":
+            view_governance()
         else:
             console.print(f"[yellow]{choice} module is currently locked.[/yellow]\n")
 

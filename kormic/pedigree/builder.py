@@ -41,7 +41,8 @@ def create_birth_record(
         "agent_pub_key": agent_pub_key,
         "derived_from": derived_from,
         "vendor_pub_key": vendor_pub_key,
-        "artifact_digest": artifact_digest
+        "artifact_digest": artifact_digest,
+        "constitution_hash": guardrails.get("constitution_hash", "")
     }
     
     if approval_assertion is not None:

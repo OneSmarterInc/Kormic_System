@@ -77,7 +77,8 @@ class BirthRecord:
             "agent_pub_key": self.agent_pub_key,
             "derived_from": self.derived_from,
             "vendor_pub_key": self.vendor_pub_key,
-            "artifact_digest": self.artifact_digest
+            "artifact_digest": self.artifact_digest,
+            "constitution_hash": self.guardrails.get("constitution_hash", "")
         }
         if self.approval_assertion is not None:
             res["approval_assertion"] = self.approval_assertion

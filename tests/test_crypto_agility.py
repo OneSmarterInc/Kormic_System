@@ -72,7 +72,8 @@ def test_birth_agility_positive():
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
-        "artifact_digest": None
+        "artifact_digest": None,
+        "constitution_hash": ""
     }
     sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
@@ -95,7 +96,8 @@ def test_birth_agility_tamper():
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
-        "artifact_digest": None
+        "artifact_digest": None,
+        "constitution_hash": ""
     }
     sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     
@@ -122,7 +124,8 @@ def test_birth_agility_downgrade():
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
-        "artifact_digest": None
+        "artifact_digest": None,
+        "constitution_hash": ""
     }
     sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig
@@ -145,7 +148,8 @@ def test_birth_agility_cutover():
         "agent_pub_key": "pub_key",
         "derived_from": None,
         "vendor_pub_key": None,
-        "artifact_digest": None
+        "artifact_digest": None,
+        "constitution_hash": ""
     }
     # Notice we didn't add sig_alg
     sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
@@ -173,7 +177,8 @@ def create_valid_agent(kc, central, registry):
         "agent_pub_key": pub.hex(),
         "derived_from": None,
         "vendor_pub_key": None,
-        "artifact_digest": None
+        "artifact_digest": None,
+        "constitution_hash": ""
     }
     sig = kc.sign_birth(1, canonical_json(br_payload).encode()).hex()
     br_payload["signature"] = sig

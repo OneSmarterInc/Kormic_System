@@ -26,6 +26,42 @@ def init_db():
             blocked_at REAL
         )
     ''')
+    # Table for Phase 1 Governance: Registry of planned agent classes
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS registry (
+            agent_class TEXT PRIMARY KEY,
+            data_touched TEXT,
+            who_may_call TEXT,
+            status TEXT
+        )
+    ''')
+    # Table for Phase 1 Governance: Capability Requests log
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS capability_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_class TEXT,
+            verdict TEXT,
+            timestamp REAL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    seed_governance_data()
+
+def seed_governance_data():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # Seed Registry
+    c.execute('INSERT OR IGNORE INTO registry (agent_class, data_touched, who_may_call, status) VALUES (?, ?, ?, ?)',
+              ("NetworkScanner", "internal_subnets", "security_team", "provisional"))
+    c.execute('INSERT OR IGNORE INTO registry (agent_class, data_touched, who_may_call, status) VALUES (?, ?, ?, ?)',
+              ("LogAnalyzer", "auth_logs", "security_team,ops_team", "provisional"))
+              
+    # Seed Capability Requests
+    c.execute('INSERT OR IGNORE INTO capability_requests (id, agent_class, verdict, timestamp) VALUES (?, ?, ?, ?)',
+              (1, "NetworkScanner", "build_new", time.time()))
+    c.execute('INSERT OR IGNORE INTO capability_requests (id, agent_class, verdict, timestamp) VALUES (?, ?, ?, ?)',
+              (2, "LogAnalyzer", "extend", time.time()))
     conn.commit()
     conn.close()
 

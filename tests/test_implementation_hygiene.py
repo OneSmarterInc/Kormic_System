@@ -89,3 +89,62 @@ def test_no_private_key_access_outside_crypto():
             if isinstance(node, ast.Attribute):
                 if node.attr in private_attrs:
                     pytest.fail(f"Private key attribute '{node.attr}' accessed in {filepath}")
+
+def test_crypto_imports_no_ui_network():
+    """
+    Guard A: Ensures that the crypto package imports no UI or network libraries.
+    Prevents accidental overwrites of crypto modules with CLI tools.
+    """
+    repo_root = Path(__file__).parent.parent
+    crypto_dir = repo_root / "kormic" / "crypto"
+    
+    FORBIDDEN_IN_CRYPTO = {"rich", "questionary", "requests", "httpx",
+                           "fastapi", "flask", "click", "typer"}
+    
+    for filepath in crypto_dir.rglob("*.py"):
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        tree = ast.parse(content, filename=str(filepath))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    # e.g. import rich
+                    base_module = alias.name.split('.')[0]
+                    assert base_module not in FORBIDDEN_IN_CRYPTO, f"Forbidden library '{alias.name}' imported in {filepath} (Import)"
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    base_module = node.module.split('.')[0]
+                    assert base_module not in FORBIDDEN_IN_CRYPTO, f"Forbidden library '{node.module}' imported in {filepath} (ImportFrom)"
+
+def test_sidecar_entry_points_hold_no_private_keys():
+    """
+    Guard B: Ensures sidecar/client entry points never touch private key material.
+    """
+    repo_root = Path(__file__).parent.parent
+    must_be_clean = [
+        repo_root / "meshkor" / "cli.py",
+        repo_root / "meshkor" / "sidecar_daemon.py",
+        repo_root / "meshkor" / "hq_client.py",
+        repo_root / "meshkor" / "authority.py"
+    ]
+    
+    FORBIDDEN_STRINGS = ["_epoch_keys", "_root_priv", "fetch_test_keys"]
+    
+    for filepath in must_be_clean:
+        if not filepath.exists():
+            continue
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        # Fast string check first
+        for forbidden in FORBIDDEN_STRINGS:
+            if forbidden in content:
+                pytest.fail(f"Forbidden private key material '{forbidden}' found in {filepath.name}")
+                
+        # AST check for assigned variables named 'priv'
+        tree = ast.parse(content, filename=str(filepath))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                if node.id == "priv":
+                    pytest.fail(f"Variable 'priv' assigned in {filepath.name}. Sidecars must never hold private keys.")

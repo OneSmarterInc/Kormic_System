@@ -86,6 +86,7 @@ class Verifier:
                 payload_dict["derived_from"] = birth_data.get("derived_from")
                 payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
                 payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
+                payload_dict["constitution_hash"] = birth_data.get("guardrails", {}).get("constitution_hash", "")
                 if birth_data.get("read_scopes") is not None:
                     payload_dict["read_scopes"] = birth_data.get("read_scopes")
                 if birth_data.get("allowed_egress") is not None:
@@ -256,6 +257,7 @@ class Verifier:
             payload_dict["derived_from"] = birth_data.get("derived_from")
             payload_dict["vendor_pub_key"] = birth_data.get("vendor_pub_key")
             payload_dict["artifact_digest"] = birth_data.get("artifact_digest")
+            payload_dict["constitution_hash"] = birth_data.get("guardrails", {}).get("constitution_hash", "")
             if birth_data.get("read_scopes") is not None:
                 payload_dict["read_scopes"] = birth_data.get("read_scopes")
             if birth_data.get("allowed_egress") is not None:
