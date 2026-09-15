@@ -183,9 +183,28 @@ This phase transitions the system from software-emulated keys to a strict, produ
 
 ---
 
-## Upcoming Roadmap (Phases 9 & 10)
+## Phase 9 Features (Phase 1 Governance & Audit Trail)
+This module establishes the foundational governance tracking and permanent cryptographic test guards required for enterprise adoption.
+
+### 31. The Governance Registry & Capability Audit
+- **Full Schema Metadata:** The control plane (`hq_kormic.db`) enforces a rich metadata registry detailing exactly `what_it_does`, the `assumption`, the `owner`, and whether an agent class is `shared_or_per_person`. This transforms the registry from a simple lookup table into a strict governance record.
+- **Auditable Capability Requests:** Every capability verdict (`build_new`, `extend`, `reuse`) requires a detailed `rationale`, `requested_by` attribution, and `registry_consulted` logs, providing an unalterable paper trail for security auditors.
+- **Pilot Integration Ready:** The architecture cleanly rejects "fake" placeholder seeds, strictly accepting only real-world helpers (e.g., GitHub Analyzer, Verification Helper) to enforce non-decorative database integrity.
+
+### 32. Permanent Cryptographic Seals (Rule 2)
+- **Tamper-Evident Guardrails:** The `constitution_hash` and related guardrails are mathematically sealed inside the birth record payload. Any bit-flip or malicious alteration of the constitution hash triggers an instant `HALT_HARD` signature mismatch across all verifying receivers globally. 
+- **Backwards Compatibility:** The verification engine mathematically ensures that legacy agents lacking a constitution hash (`empty-string default`) verify perfectly, preventing fragile regressions across epoch boundaries.
+
+### 33. Phase 2 Versioning Architectural Preparations
+- **Class-Match Enforcement Mapping:** The architecture sets the groundwork for Phase 2 Behavior Versioning. `current_behavior_version` upgrades will be mathematically restricted: an agent can only migrate to a behavior where its `class_ref` exactly equals the `derived_from` field sealed inside the original DAIN.
+- **Structured Ledger Events:** Event logging (`record_event`) boundaries are mapped to support structured JSON properties, preparing the chain to ingest complex `behavior_version_moved(from, to, by, at)` transition telemetry.
+
+---
+
+## Upcoming Roadmap (Phase 10)
 As the Kormic architecture moves toward an enterprise public release, the following phases are scheduled for immediate implementation:
 
+- **Phase 2 Behavior Versioning:** Implementing the `current_behavior_version` pointer and the strict class-match enforcement layer.
 - **AWS Cloud Deployment:** Containerizing the `hq_server.py` backend and deploying it behind an Application Load Balancer inside a private VPC.
 - **PyPI SDK Packaging:** Bundling the `meshkor` integration library into a formal Python package for seamless `pip install meshkor` integration for customer AI agents.
 - **Standalone Admin Executable (`.exe`):** Packaging the `meshkor_admin.py` interactive terminal UI into a zero-dependency, code-signed PyInstaller executable. This allows enterprise CISO administrators to deploy the hardware authentication gateway across Windows endpoints instantly.
@@ -209,8 +228,9 @@ python demos/demo_attacks.py
 ```
 
 ### Running Tests
-The codebase is heavily tested. A massive unified end-to-end simulation covering all edge cases (Birth -> High Churn -> Behavior Halts -> Global Revocation Fan-out -> Bloom Filter Rejection -> Server Crash -> Shamir Key Ceremony Twin Recovery -> Verification) can be run via:
+The codebase is heavily tested. A massive unified end-to-end simulation covering all edge cases (Birth -> High Churn -> Behavior Halts -> Global Revocation Fan-out -> Bloom Filter Rejection -> Server Crash -> Shamir Key Ceremony Twin Recovery -> Verification -> Governance Tampering) can be run via:
 
 ```bash
-pytest tests/test_integration_unified.py -v
+pytest tests/ -v
+# Currently passing 164 mathematically rigorous tests.
 ```

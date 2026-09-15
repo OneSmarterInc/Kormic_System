@@ -30,38 +30,72 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS registry (
             agent_class TEXT PRIMARY KEY,
-            data_touched TEXT,
+            class_ref TEXT,
+            what_it_does TEXT,
+            assumption TEXT,
             who_may_call TEXT,
+            data_touched TEXT,
+            owner TEXT,
+            shared_or_per_person TEXT,
             status TEXT
         )
     ''')
+    
+    # Safe migrations for existing rows
+    try: c.execute('ALTER TABLE registry ADD COLUMN class_ref TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE registry ADD COLUMN what_it_does TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE registry ADD COLUMN assumption TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE registry ADD COLUMN owner TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE registry ADD COLUMN shared_or_per_person TEXT')
+    except sqlite3.OperationalError: pass
+
     # Table for Phase 1 Governance: Capability Requests log
     c.execute('''
         CREATE TABLE IF NOT EXISTS capability_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             agent_class TEXT,
+            requested_by TEXT,
+            description TEXT,
+            registry_consulted TEXT,
+            rationale TEXT,
+            outcome_ref TEXT,
             verdict TEXT,
             timestamp REAL
         )
     ''')
+    
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN requested_by TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN description TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN registry_consulted TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN rationale TEXT')
+    except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN outcome_ref TEXT')
+    except sqlite3.OperationalError: pass
+
     conn.commit()
     conn.close()
+    
+    # Do not call seed_governance_data() since we have no real helpers.
     seed_governance_data()
 
 def seed_governance_data():
+    """
+    Item 2: Blocked on Kormic helper list. 
+    Removing fake seeds NetworkScanner and LogAnalyzer.
+    Empty registry is preferred over decorative fakes.
+    """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    # Seed Registry
-    c.execute('INSERT OR IGNORE INTO registry (agent_class, data_touched, who_may_call, status) VALUES (?, ?, ?, ?)',
-              ("NetworkScanner", "internal_subnets", "security_team", "provisional"))
-    c.execute('INSERT OR IGNORE INTO registry (agent_class, data_touched, who_may_call, status) VALUES (?, ?, ?, ?)',
-              ("LogAnalyzer", "auth_logs", "security_team,ops_team", "provisional"))
-              
-    # Seed Capability Requests
-    c.execute('INSERT OR IGNORE INTO capability_requests (id, agent_class, verdict, timestamp) VALUES (?, ?, ?, ?)',
-              (1, "NetworkScanner", "build_new", time.time()))
-    c.execute('INSERT OR IGNORE INTO capability_requests (id, agent_class, verdict, timestamp) VALUES (?, ?, ?, ?)',
-              (2, "LogAnalyzer", "extend", time.time()))
+    # Delete legacy placeholders if they exist
+    c.execute('DELETE FROM registry WHERE agent_class IN ("NetworkScanner", "LogAnalyzer")')
+    c.execute('DELETE FROM capability_requests WHERE agent_class IN ("NetworkScanner", "LogAnalyzer")')
     conn.commit()
     conn.close()
 

@@ -134,3 +134,80 @@ class TestTwoTierVerify:
         res = self.verifier.verify_fast(token, mode="build_only")
         assert res.status == "PASS"
         assert res.verified_scope == "build"
+
+    def test_constitution_hash_tamper_breaks_signature(self):
+        from kormic.models.identity import Identity
+        from kormic.pedigree.builder import create_birth_record
+        import copy
+        
+        bain_identity = Identity("BLD", "tamper", "1.0", "c" * 64)
+        bain_birth = create_birth_record(
+            identity=bain_identity,
+            guardrails={"constitution_hash": "original_hash_value"},
+            epoch_number=1,
+            sig_alg="ML-DSA-87",
+            key_custody=self.key_custody,
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=self.artifact_digest
+        )
+        
+        token = ProofToken(
+            agent_code=bain_identity.to_string(),
+            birth_record=bain_birth.to_dict(),
+            current_head="head_hash",
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            parent_birth_record=None,
+            sig_alg='ML-DSA-87', fmt_ver=1
+        )
+        
+        # Original verifies correctly
+        assert self.verifier.verify_fast(token, mode="build_only").status == "PASS"
+        
+        # Tamper with the hash
+        tampered_dict = copy.deepcopy(bain_birth.to_dict())
+        tampered_dict['guardrails']['constitution_hash'] = "tampered_hash_value"
+        
+        tampered_token = ProofToken(
+            agent_code=bain_identity.to_string(),
+            birth_record=tampered_dict,
+            current_head="head_hash",
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            parent_birth_record=None,
+            sig_alg='ML-DSA-87', fmt_ver=1
+        )
+        
+        res = self.verifier.verify_fast(tampered_token, mode="build_only")
+        assert res.status == "HALT_HARD"
+        assert "Invalid birth signature" in res.reason
+
+    def test_constitution_hash_absent_still_verifies(self):
+        from kormic.models.identity import Identity
+        from kormic.pedigree.builder import create_birth_record
+        
+        bain_identity = Identity("BLD", "absent", "1.0", "d" * 64)
+        bain_birth = create_birth_record(
+            identity=bain_identity,
+            guardrails={"other_key": "value"},
+            epoch_number=1,
+            sig_alg="ML-DSA-87",
+            key_custody=self.key_custody,
+            vendor_pub_key=self.vendor_pub_hex,
+            artifact_digest=self.artifact_digest
+        )
+        
+        token = ProofToken(
+            agent_code=bain_identity.to_string(),
+            birth_record=bain_birth.to_dict(),
+            current_head="head_hash",
+            history_length=0,
+            freshness_timestamp=time.time(),
+            authority_reference="test",
+            parent_birth_record=None,
+            sig_alg='ML-DSA-87', fmt_ver=1
+        )
+        
+        assert self.verifier.verify_fast(token, mode="build_only").status == "PASS"
