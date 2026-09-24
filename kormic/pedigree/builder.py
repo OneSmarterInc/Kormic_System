@@ -96,7 +96,8 @@ def initialize_pedigree(birth_record: BirthRecord) -> Pedigree:
 def append_history_event(
     pedigree: Pedigree,
     event: str,
-    timestamp: float = None
+    timestamp: float = None,
+    event_data: Optional[Dict[str, Any]] = None
 ) -> Pedigree:
     """
     Appends a new Event to the history chain and recalculates the running head.
@@ -123,22 +124,29 @@ def append_history_event(
         "timestamp": timestamp,
         "prev_hash": prev_hash
     }
+    if event_data is not None:
+        link_payload["event_data"] = event_data
+        
     this_hash = hash_hex(hash_alg, canonical_json(link_payload))
     new_link = HistoryLink(
         seq=seq,
         event=event,
         timestamp=timestamp,
         prev_hash=prev_hash,
-        this_hash=this_hash
+        this_hash=this_hash,
+        event_data=event_data
     )
 
     # Recalculate running head O(1)
-    # head_n = SHA256(head_{n-1} || canonical_json({seq, event, timestamp}))
+    # head_n = SHA256(head_{n-1} || canonical_json({seq, event, timestamp[, event_data]}))
     event_payload = {
         "seq": seq,
         "event": event,
         "timestamp": timestamp
     }
+    if event_data is not None:
+        event_payload["event_data"] = event_data
+        
     head_input = pedigree.running_head + canonical_json(event_payload)
     new_head = hash_hex(hash_alg, head_input)
 

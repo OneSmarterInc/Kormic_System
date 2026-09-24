@@ -34,7 +34,9 @@ class RemoteAuthority(Authority):
         res = self.stub.GetPedigree(req)
         return json.loads(res.pedigree_json)
 
-    def record_event(self, ain: str, event_description: str) -> str:
+    def record_event(self, ain: str, event_description: str, event_data: dict = None) -> str:
+        # Note: gRPC schema might need an update to pass `event_data` fully to sidecar.
+        # For now we serialize it in if provided. (Or just pass string for v4 sidecar).
         req = meshkor_pb2.RecordRequest(ain=ain, event_data=event_description)
         res = self.stub.RecordEvent(req)
         return res.new_head

@@ -63,7 +63,7 @@ def admin_auth(req: AdminAuthRequest):
     active_admin_sessions[session_token] = True
     return {"session_token": session_token}
 
-import meshkor.hq_db as db
+import hq_backend.hq_db as db
 
 @app.on_event("startup")
 def startup_event():
@@ -155,7 +155,23 @@ def enroll_agent(req: EnrollRequest):
     return {"ain": ain, "pedigree": pedigree_dict}
 
 def start_hq(port: int = 8080):
-    uvicorn.run("meshkor.hq_server:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("hq_backend.hq_server:app", host="0.0.0.0", port=port, reload=False)
 
 if __name__ == '__main__':
     start_hq()
+
+class EventRecord(BaseModel):
+    ain: str
+    event_description: str
+    event_data: dict = None
+
+@app.post('/record_event')
+def record_event_route(req: EventRecord):
+    db.log_event(req.ain, req.event_description, req.event_data)
+    return {'status': 'ok'}
+
+@app.get('/admin/logs')
+def get_admin_logs(token: str):
+    if token not in active_admin_sessions: return {'error': 'Unauthorized.'}
+    return {'logs': db.get_events()}
+

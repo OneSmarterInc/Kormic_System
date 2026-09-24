@@ -126,7 +126,8 @@ def test_sidecar_entry_points_hold_no_private_keys():
         repo_root / "meshkor" / "cli.py",
         repo_root / "meshkor" / "sidecar_daemon.py",
         repo_root / "meshkor" / "hq_client.py",
-        repo_root / "meshkor" / "authority.py"
+        repo_root / "meshkor" / "authority.py",
+        repo_root / "meshkor" / "integrations" / "kormic.py"
     ]
     
     FORBIDDEN_STRINGS = ["_epoch_keys", "_root_priv", "fetch_test_keys"]
@@ -141,6 +142,10 @@ def test_sidecar_entry_points_hold_no_private_keys():
         for forbidden in FORBIDDEN_STRINGS:
             if forbidden in content:
                 pytest.fail(f"Forbidden private key material '{forbidden}' found in {filepath.name}")
+                
+        # Kormic wrapper specifically cannot use LocalAuthority
+        if "kormic.py" in filepath.name and "LocalAuthority" in content:
+            pytest.fail(f"Kormic integration wrapper {filepath.name} illegally imports LocalAuthority")
                 
         # AST check for assigned variables named 'priv'
         tree = ast.parse(content, filename=str(filepath))

@@ -234,3 +234,4 @@ class ReceiverClient:
                 return Verdict(ok=True, status="ADVISORY_BYPASS", reason=fail_reason)
 
         return Verdict(ok=True, status="PASS", reason="Artifact verified successfully.")
+    

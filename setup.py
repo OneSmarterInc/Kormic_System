@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name="meshkor",
-    version="1.0.0",
+    version="1.0.2",
     description="MeshKor SDK and Sidecar Daemon for Cryptographic AI Verification",
-    packages=find_packages(include=["meshkor", "kormic", "kormic.*"]),
+    packages=find_packages(include=["meshkor", "meshkor.*", "kormic", "kormic.*"]),
     install_requires=[
         "grpcio",
         "grpcio-tools",

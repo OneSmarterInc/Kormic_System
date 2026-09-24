@@ -23,7 +23,7 @@ class Authority(ABC):
         pass
 
     @abstractmethod
-    def record_event(self, ain: str, event_description: str) -> str:
+    def record_event(self, ain: str, event_description: str, event_data: dict = None) -> str:
         """Records an event with the Authority and returns the new head."""
         pass
 
@@ -55,8 +55,8 @@ class LocalAuthority(Authority):
     def get_pedigree(self, ain: str) -> dict:
         return self._manager.record_store.get(ain)
 
-    def record_event(self, ain: str, event_description: str) -> str:
-        self._manager.add_event(ain, event_description)
+    def record_event(self, ain: str, event_description: str, event_data: dict = None) -> str:
+        self._manager.add_event(ain, event_description, event_data=event_data)
         ped = self._manager.record_store.get(ain)
         return ped['running_head']
 
@@ -91,8 +91,8 @@ class HQBackedAuthority(Authority):
     def get_pedigree(self, ain: str) -> dict:
         return self._manager.record_store.get(ain)
 
-    def record_event(self, ain: str, event_description: str) -> str:
-        self._manager.add_event(ain, event_description)
+    def record_event(self, ain: str, event_description: str, event_data: dict = None) -> str:
+        self._manager.add_event(ain, event_description, event_data=event_data)
         ped = self._manager.record_store.get(ain)
         return ped['running_head']
 

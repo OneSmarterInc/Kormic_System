@@ -45,9 +45,9 @@ class MeshKorAgent:
             current_head=ped_dict['running_head']
         )
         
-    def record_event(self, event_description: str):
+    def record_event(self, event_description: str, event_data: Optional[dict] = None):
         """Advances the Tamper-Evident History chain on the Authority."""
-        self.current_head = self.authority.record_event(self.ain, event_description)
+        self.current_head = self.authority.record_event(self.ain, event_description, event_data=event_data)
         self.history_length += 1
         
     def mint_token(self, challenge: Optional[str] = None) -> ProofToken:
@@ -100,9 +100,9 @@ class MeshKorAgentMixin:
             authority, agent_type, entity_ref, instance, real_world_id, manifest
         )
         
-    def record_event(self, event_description: str):
+    def record_event(self, event_description: str, event_data: Optional[dict] = None):
         if hasattr(self, '_meshkor_agent'):
-            self._meshkor_agent.record_event(event_description)
+            self._meshkor_agent.record_event(event_description, event_data=event_data)
             
     def mint_token(self, challenge: Optional[str] = None) -> ProofToken:
         if not hasattr(self, '_meshkor_agent'):
@@ -121,8 +121,8 @@ def meshkor_verified(authority: Authority, agent_type: str, entity_ref: str,
                 authority, agent_type, entity_ref, instance, real_world_id, manifest
             )
             
-        def record_event(self, event_description: str):
-            self._meshkor_agent.record_event(event_description)
+        def record_event(self, event_description: str, event_data: Optional[dict] = None):
+            self._meshkor_agent.record_event(event_description, event_data=event_data)
             
         def mint_token(self, challenge: Optional[str] = None) -> ProofToken:
             return self._meshkor_agent.mint_token(challenge)

@@ -51,4 +51,3 @@ class ThresholdCeremony:
             raise PermissionError(f"Threshold quorum failed. Invalid or corrupted shares: {e}")
 
         self.logger.warning(f"CEREMONY SUCCESS [{action}]: Threshold quorum cryptographically verified ({provided}/{self.n} shares).")
-    

@@ -45,3 +45,4 @@ class CredentialRoot:
             "token": f"scoped:{requested_scope}:{os.urandom(8).hex()}", 
             "ttl_sec": 300
         }
+    

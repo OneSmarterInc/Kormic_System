@@ -95,16 +95,20 @@ class HistoryLink:
     timestamp: float
     prev_hash: str
     this_hash: str
+    event_data: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes history link representation to dictionary format."""
-        return {
+        res = {
             "seq": self.seq,
             "event": self.event,
             "timestamp": self.timestamp,
             "prev_hash": self.prev_hash,
             "this_hash": self.this_hash
         }
+        if self.event_data is not None:
+            res["event_data"] = self.event_data
+        return res
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HistoryLink":
@@ -113,17 +117,21 @@ class HistoryLink:
             event=data["event"],
             timestamp=data["timestamp"],
             prev_hash=data["prev_hash"],
-            this_hash=data["this_hash"]
+            this_hash=data["this_hash"],
+            event_data=data.get("event_data")
         )
 
     def to_payload_dict(self) -> Dict[str, Any]:
         """Payload dict used for calculating this_hash link (excluding this_hash itself)."""
-        return {
+        res = {
             "seq": self.seq,
             "event": self.event,
             "timestamp": self.timestamp,
             "prev_hash": self.prev_hash
         }
+        if self.event_data is not None:
+            res["event_data"] = self.event_data
+        return res
 
 @dataclass(frozen=True)
 class Pedigree:

@@ -8,7 +8,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 console = Console()
-HQ_URL = "http://127.0.0.1:8080"
+HQ_URL = "http://44.193.27.158:8080"
 SESSION_TOKEN = None
 
 def get_yubikey_signature(challenge: str, pin: str) -> tuple:
@@ -232,54 +232,37 @@ def agent_operations():
             console.print("[bold red]Global Revocation Order Signed and Broadcasted![/bold red]\n")
 
 def view_governance():
+    console.print("[green]Phase 1 Governance was an offline SQLite file. In Phase 2, Governance is managed directly on the AWS HQ Server.\nAccess the HQ database for legacy registries.[/green]\n")
+
+def view_logs():
     try:
-        # We can just fetch it from SQLite locally since admin console runs on the HQ machine
-        # or we could make an HTTP endpoint. For simplicity/speed in this CLI, we will query DB directly.
-        import meshkor.hq_db as db
-        import sqlite3
-        conn = sqlite3.connect("hq_kormic.db")
-        c = conn.cursor()
-        
-        # Registry
-        c.execute("SELECT agent_class, class_ref, what_it_does, assumption, owner, shared_or_per_person, data_touched, who_may_call, status FROM registry")
-        reg_rows = c.fetchall()
-        
-        t1 = Table(title="Phase 1 Governance: Agent Registry")
-        t1.add_column("Agent Class", style="cyan")
-        t1.add_column("Class Ref", style="dim")
-        t1.add_column("What it does", style="white")
-        t1.add_column("Assumption", style="dim")
-        t1.add_column("Owner", style="magenta")
-        t1.add_column("Shared/Per-Person", style="blue")
-        t1.add_column("Data Touched", style="yellow")
-        t1.add_column("Who May Call", style="magenta")
-        t1.add_column("Status", style="green")
-        for r in reg_rows:
-            t1.add_row(str(r[0]), str(r[1]), str(r[2]), str(r[3]), str(r[4]), str(r[5]), str(r[6]), str(r[7]), str(r[8]))
-        console.print(t1)
-        
-        # Capability Requests
-        c.execute("SELECT id, agent_class, requested_by, description, registry_consulted, rationale, outcome_ref, verdict FROM capability_requests")
-        cap_rows = c.fetchall()
-        
-        t2 = Table(title="Capability Requests Log")
-        t2.add_column("ID", style="dim")
-        t2.add_column("Agent Class", style="cyan")
-        t2.add_column("Requested By", style="magenta")
-        t2.add_column("Description", style="white")
-        t2.add_column("Registry Consulted", style="dim")
-        t2.add_column("Rationale", style="yellow")
-        t2.add_column("Outcome Ref", style="blue")
-        t2.add_column("Verdict", style="bold red")
-        for r in cap_rows:
-            t2.add_row(str(r[0]), str(r[1]), str(r[2]), str(r[3]), str(r[4]), str(r[5]), str(r[6]), str(r[7]))
-        console.print(t2)
-        
-        conn.close()
+        res = requests.get(f"{HQ_URL}/admin/logs?token={SESSION_TOKEN}").json()
+        if "error" in res:
+            console.print(f"[red]Error: {res['error']}[/red]")
+            return
+        logs = res.get("logs", [])
+        if not logs:
+            console.print("[yellow]No events recorded yet.[/yellow]")
+            return
+        table = Table(title="Live Agent Telemetry Logs (from AWS HQ)")
+        table.add_column("Timestamp", style="dim")
+        table.add_column("Agent AIN", style="cyan")
+        table.add_column("Event Type", style="magenta")
+        table.add_column("Details", style="white")
+        for L in logs:
+            table.add_row(str(L.get("timestamp")), L.get("ain"), L.get("event_type"), str(L.get("details")))
+        console.print(table)
     except Exception as e:
-        console.print(f"[bold red]Could not load Governance tables: {e}[/bold red]")
-        
-    questionary.press_any_key_to_continue("Press any key to return...").ask()
+        console.print(f"[red]Could not fetch logs: {e}[/red]")
+
+def view_keys():
+    try:
+        res = requests.get(f"{HQ_URL}/root_key").json()
+        console.print("\n[bold yellow]--- AWS HQ ROOT PUBLIC KEY (P-256) ---[/bold yellow]")
+        console.print(res.get("root_pub"))
+        console.print("[dim]Use this key to mathematically verify Kormic agent identities without trusting the AWS server.[/dim]\n")
+    except Exception as e:
+        console.print(f"[red]Failed to fetch root key: {e}[/red]")
 
 def main_menu():
     while True:
@@ -288,6 +271,7 @@ def main_menu():
             choices=[
                 " Agents Operations",
                 " Recovery Twins",
+                " Check System Logs (Live Telemetry)",
                 " Phase 1 Governance (Registry)",
                 " Cryptographic Keys",
                 " Exit Admin Mode"
@@ -301,8 +285,12 @@ def main_menu():
             agent_operations()
         elif choice == " Recovery Twins":
             view_twins()
+        elif choice == " Check System Logs (Live Telemetry)":
+            view_logs()
         elif choice == " Phase 1 Governance (Registry)":
             view_governance()
+        elif choice == " Cryptographic Keys":
+            view_keys()
         else:
             console.print(f"[yellow]{choice} module is currently locked.[/yellow]\n")
 

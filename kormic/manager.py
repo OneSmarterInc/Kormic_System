@@ -176,7 +176,7 @@ class AgentManager:
 
         return AgentEnrollmentResult(agent_code, shares)
 
-    def add_event(self, agent_code: str, event_data: str, snapshot_k: int = 5) -> Optional[list]:
+    def add_event(self, agent_code: str, event_description: str, snapshot_k: int = 5, event_data: Optional[Dict[str, Any]] = None) -> Optional[list]:
         """
         Adds a history event. Implements the High-Churn Snapshot Model (Section 6.4).
         Returns new Shamir shares if a Snapshot Twin was sealed on this event, else None.
@@ -187,7 +187,7 @@ class AgentManager:
 
         # The entire read-modify-write must be atomic per agent. Without this lock,
         # concurrent callers each read the same head, append, and write back, and the
-        # last write wins — events vanish AND the surviving chain still verifies clean,
+        # last write wins - events vanish AND the surviving chain still verifies clean,
         # which is the worst failure mode for a tamper-evident log. verify_full cannot
         # detect a truncation that never entered the chain, so the guarantee has to be
         # enforced here at write time.
@@ -200,7 +200,7 @@ class AgentManager:
             pedigree = Pedigree.from_dict(ped_dict)
 
             # 2. Add Event
-            pedigree = append_history_event(pedigree, event_data, time.time())
+            pedigree = append_history_event(pedigree, event_description, time.time(), event_data=event_data)
             seq = len(pedigree.history)
 
             # 3. Update live DB

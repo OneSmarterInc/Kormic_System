@@ -26,6 +26,18 @@ def init_db():
             blocked_at REAL
         )
     ''')
+    
+    # Table for telemetry events
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS event_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ain TEXT,
+            event_type TEXT,
+            details TEXT,
+            timestamp REAL
+        )
+    ''')
+
     # Table for Phase 1 Governance: Registry of planned agent classes
     c.execute('''
         CREATE TABLE IF NOT EXISTS registry (
@@ -53,6 +65,9 @@ def init_db():
     try: c.execute('ALTER TABLE registry ADD COLUMN shared_or_per_person TEXT')
     except sqlite3.OperationalError: pass
 
+    try: c.execute('ALTER TABLE registry ADD COLUMN confirmed_by TEXT')
+    except sqlite3.OperationalError: pass
+    
     # Table for Phase 1 Governance: Capability Requests log
     c.execute('''
         CREATE TABLE IF NOT EXISTS capability_requests (
@@ -78,24 +93,72 @@ def init_db():
     except sqlite3.OperationalError: pass
     try: c.execute('ALTER TABLE capability_requests ADD COLUMN outcome_ref TEXT')
     except sqlite3.OperationalError: pass
+    try: c.execute('ALTER TABLE capability_requests ADD COLUMN confirmed_by TEXT')
+    except sqlite3.OperationalError: pass
 
     conn.commit()
     conn.close()
     
-    # Do not call seed_governance_data() since we have no real helpers.
+    # Seed the drafts from the codebase
     seed_governance_data()
 
 def seed_governance_data():
     """
-    Item 2: Blocked on Kormic helper list. 
-    Removing fake seeds NetworkScanner and LogAnalyzer.
-    Empty registry is preferred over decorative fakes.
+    Item 1: Draft registry rows from existing helper code.
+    Prajval to confirm.
     """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     # Delete legacy placeholders if they exist
     c.execute('DELETE FROM registry WHERE agent_class IN ("NetworkScanner", "LogAnalyzer")')
     c.execute('DELETE FROM capability_requests WHERE agent_class IN ("NetworkScanner", "LogAnalyzer")')
+    
+    helpers = [
+        (
+            "github_analyzer", 
+            "Analyzes public GitHub repositories to extract technical skills and original work ratios.",
+            "Student has linked a GitHub account.",
+            "admissions_team, student_advisor",
+            "profile.github",
+            "kormic_engineering",
+            "per-person"
+        ),
+        (
+            "course_mapper",
+            "Maps technical interests extracted from GitHub to recommended academic course tracks.",
+            "GitHub analysis has been successfully performed.",
+            "admissions_team, student_advisor",
+            "profile.github.analysis",
+            "kormic_advising",
+            "per-person"
+        ),
+        (
+            "university_querier",
+            "Scrapes and queries university knowledge bases to answer prospective student questions.",
+            "University URLs are accessible and target university persona is defined.",
+            "prospective_student, student_advisor",
+            "university_kb, external_web",
+            "kormic_content_team",
+            "shared"
+        )
+    ]
+    
+    for h in helpers:
+        # Check if exists to avoid dupes
+        c.execute('SELECT agent_class FROM registry WHERE agent_class=?', (h[0],))
+        if not c.fetchone():
+            c.execute('''
+                INSERT INTO registry 
+                (agent_class, class_ref, what_it_does, assumption, who_may_call, data_touched, owner, shared_or_per_person, status, confirmed_by)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, ?, "provisional", NULL)
+            ''', h)
+            
+            c.execute('''
+                INSERT INTO capability_requests 
+                (agent_class, requested_by, description, registry_consulted, rationale, outcome_ref, verdict, timestamp, confirmed_by)
+                VALUES (?, "system_bootstrap", "Needs ability to run codebase helper", "none", "no prior helper touched this domain data", NULL, "build_new", ?, NULL)
+            ''', (h[0], time.time()))
+            
     conn.commit()
     conn.close()
 
@@ -171,3 +234,18 @@ def flag_suspect(ain, reason):
     c.execute('UPDATE twins SET status="suspected" WHERE ain=?', (ain,))
     conn.commit()
     conn.close()
+
+
+def log_event(ain, event_type, details):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('INSERT INTO event_logs (ain, event_type, details, timestamp) VALUES (?, ?, ?, ?)', (ain, event_type, json.dumps(details), time.time()))
+    conn.commit()
+    conn.close()
+
+def get_events(limit=50):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT ain, event_type, details, timestamp FROM event_logs ORDER BY timestamp DESC LIMIT ?', (limit,))
+    return [{'ain': r[0], 'event_type': r[1], 'details': json.loads(r[2]) if r[2] else {}, 'timestamp': r[3]} for r in c.fetchall()]
+
