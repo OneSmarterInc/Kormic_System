@@ -1,12 +1,17 @@
 import logging
 import requests
+import time
+import hashlib
+import json
 from typing import Optional
-from kormic.models.pedigree import Pedigree
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded circuit-breaker timeout for Advisory Mode
 NETWORK_TIMEOUT_SEC = 0.2
+CIRCUIT_BREAKER_COOLDOWN_SEC = 60
+
+# Module-level circuit breaker state
+_breaker_tripped_until = 0
 
 class KormicMeshKorIntegration:
     """
@@ -15,16 +20,23 @@ class KormicMeshKorIntegration:
     """
     def __init__(self, hq_url: Optional[str] = None):
         import os
-        self.hq_url = hq_url or os.getenv("MESHKOR_HQ_URL", "http://44.193.27.158:8080")
+        # Finding B: Remove hardcoded IP, fail if missing.
+        self.hq_url = hq_url or os.getenv("MESHKOR_HQ_URL")
+        self.api_key = os.getenv("MESHKOR_API_KEY", "")
+        
         if not self.hq_url:
-            logger.warning("No HQ URL provided. MeshKor will fail-open automatically.")
+            logger.warning("No MESHKOR_HQ_URL provided in env. MeshKor will fail-open automatically.")
+
+    def _is_breaker_open(self) -> bool:
+        global _breaker_tripped_until
+        return time.time() < _breaker_tripped_until
+
+    def _trip_breaker(self):
+        global _breaker_tripped_until
+        _breaker_tripped_until = time.time() + CIRCUIT_BREAKER_COOLDOWN_SEC
 
     def enroll_agent(self, agent_class: str, instance_ref: str, manifest: dict, constitution_hash: str, mode: str = "advisory") -> Optional[str]:
-        """
-        Enrolls a new agent instance with the HQ server to receive an AIN.
-        Fails open (returns None) if the HQ server is unreachable.
-        """
-        if not self.hq_url:
+        if not self.hq_url or self._is_breaker_open():
             return None
 
         payload = {
@@ -35,44 +47,51 @@ class KormicMeshKorIntegration:
             "manifest": manifest,
             "constitution_hash": constitution_hash,
             "mode": mode,
-            "agent_pub_key": "advisory_mode_no_local_key" # In v1 advisory, we defer strict local auth
+            "agent_pub_key": "advisory_mode_no_local_key" 
         }
 
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+
         try:
-            # We use a strict timeout to prevent blocking Django WSGI workers
             response = requests.post(
                 f"{self.hq_url}/enroll", 
                 json=payload, 
+                headers=headers,
                 timeout=NETWORK_TIMEOUT_SEC
             )
             response.raise_for_status()
             data = response.json()
             return data.get("ain")
-        except requests.exceptions.Timeout:
-            logger.warning(f"MeshKor HQ Timeout ({NETWORK_TIMEOUT_SEC}s). Failing open for agent {agent_class}.")
-            return None
         except Exception as e:
-            logger.warning(f"MeshKor HQ Error: {str(e)}. Failing open for agent {agent_class}.")
+            logger.warning(f"MeshKor HQ Error: {str(e)}. Tripping circuit breaker for {CIRCUIT_BREAKER_COOLDOWN_SEC}s.")
+            self._trip_breaker()
             return None
 
     def record_event(self, ain: str, event_description: str, event_data: dict = None) -> None:
-        """
-        Records a tamper-evident event asynchronously (or fire-and-forget).
-        """
-        if not ain or not self.hq_url:
-            return # If AIN is None (failed open), skip recording
+        if not ain or not self.hq_url or self._is_breaker_open():
+            return
+
+        # Finding A: Hash the event data, NEVER send student plaintext to HQ
+        event_hash = None
+        if event_data:
+            canonical_json = json.dumps(event_data, sort_keys=True, separators=(',', ':'))
+            event_hash = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
 
         payload = {
             "ain": ain,
             "event_description": event_description,
-            "event_data": event_data
+            "event_hash": event_hash  # Sent instead of event_data
         }
+        
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
         try:
             requests.post(
                 f"{self.hq_url}/record_event", 
                 json=payload, 
+                headers=headers,
                 timeout=NETWORK_TIMEOUT_SEC
             )
         except Exception as e:
-            logger.warning(f"MeshKor Event Logging Error: {str(e)}. Ignoring.")
+            logger.warning(f"MeshKor Event Logging Error: {str(e)}. Tripping circuit breaker.")
+            self._trip_breaker()

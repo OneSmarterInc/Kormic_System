@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
+import os
+
+VALID_API_KEY = os.getenv("MESHKOR_API_KEY", "default-dev-key")
 from pydantic import BaseModel
 import uvicorn
 from kormic.registry.distributed import CentralRegistryAuthority
@@ -68,8 +71,7 @@ import hq_backend.hq_db as db
 @app.on_event("startup")
 def startup_event():
     db.init_db()
-    # Pre-populate some dummy agents for the UI if the DB is empty (just so they have something to test without enrolling new agents yet)
-    if not db.get_all_twins():
+    if os.getenv("DEV_MODE") == "1" and not db.get_all_twins():
         db.add_twin("KMC.AGNT.demo.001", {}, "encrypted_aes_payload_123")
         db.add_twin("KMC.AGNT.demo.002", {}, "encrypted_aes_payload_456")
         db.flag_suspect("KMC.AGNT.suspect.001", "Anomalous Database Query Volume")
@@ -134,18 +136,25 @@ class EnrollRequest(BaseModel):
     instance: str
     real_world_id: str
     manifest: dict
+    constitution_hash: str = None
     agent_pub_key: str = ""
 
 @app.post("/enroll")
-def enroll_agent(req: EnrollRequest):
+def enroll_agent(req: EnrollRequest, authorization: str = Header(None)):
+    if authorization != f"Bearer {VALID_API_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid Deployment Credential")
+    
+    # Finding C: Merge constitution_hash into manifest so it is cryptographically sealed
+    if req.constitution_hash:
+        req.manifest["constitution_hash"] = req.constitution_hash
     # HQ signs the birth record locally, holding the private key safely in the cloud
     from kormic.manager import AgentManager
-    from kormic.storage.memory import MemoryRecordStore
-    from kormic.models.identity import Pedigree
+    from kormic.storage.sqlite import SQLiteRecordStore
+    from kormic.models.pedigree import Pedigree
     
     # We use a temporary MemoryRecordStore just to run the generation logic.
     # We don't persist it in HQ memory because the sidecar owns the operational history.
-    temp_manager = AgentManager(keys, MemoryRecordStore(), default_epoch=1, registry_reader=central)
+    temp_manager = AgentManager(keys, SQLiteRecordStore(":memory:"), default_epoch=1, registry_reader=central)
     ain, _ = temp_manager.register_new_agent(
         req.agent_type, req.entity_ref, req.instance, req.real_world_id, req.manifest, agent_pub_key=req.agent_pub_key
     )
@@ -163,11 +172,16 @@ if __name__ == '__main__':
 class EventRecord(BaseModel):
     ain: str
     event_description: str
-    event_data: dict = None
+    event_hash: str = None
 
 @app.post('/record_event')
-def record_event_route(req: EventRecord):
-    db.log_event(req.ain, req.event_description, req.event_data)
+def record_event_route(req: EventRecord, authorization: str = Header(None)):
+    if authorization != f"Bearer {VALID_API_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid Deployment Credential")
+    
+    # Finding A: Store hash, never data
+    details = {"event_hash": req.event_hash} if req.event_hash else {}
+    db.log_event(req.ain, req.event_description, details)
     return {'status': 'ok'}
 
 @app.get('/admin/logs')
