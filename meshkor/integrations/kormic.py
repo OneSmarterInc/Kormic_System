@@ -26,6 +26,8 @@ class KormicMeshKorIntegration:
         
         if not self.hq_url:
             logger.warning("No MESHKOR_HQ_URL provided in env. MeshKor will fail-open automatically.")
+        elif self.hq_url.startswith("http://"):
+            logger.warning("TRIPWIRE: MeshKor is configured with a plaintext http:// URL. The pilot requires TLS (https://).")
 
     def _is_breaker_open(self) -> bool:
         global _breaker_tripped_until

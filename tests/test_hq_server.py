@@ -35,3 +35,4 @@ def test_enrollment_seals_constitution_hash():
     assert "birth_record" in pedigree
     assert pedigree["birth_record"].get("guardrails") is not None
     assert pedigree["birth_record"]["guardrails"].get("constitution_hash") == "abc123sealedhash" or pedigree["birth_record"]["guardrails"].get("manifest", {}).get("constitution_hash") == "abc123sealedhash"
+

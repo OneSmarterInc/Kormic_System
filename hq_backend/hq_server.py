@@ -1,7 +1,17 @@
 from fastapi import FastAPI, Header, HTTPException
 import os
 
-VALID_API_KEY = os.getenv("MESHKOR_API_KEY", "default-dev-key")
+import logging
+
+KORMIC_DEPLOYMENT_MODE = os.getenv("KORMIC_DEPLOYMENT_MODE", "production")
+VALID_API_KEY = os.getenv("MESHKOR_API_KEY")
+
+if not VALID_API_KEY:
+    if KORMIC_DEPLOYMENT_MODE == "development":
+        VALID_API_KEY = "default-dev-key"
+        logging.warning("MESHKOR_API_KEY is unset. Running in development mode with default key. DO NOT USE IN PRODUCTION.")
+    else:
+        raise RuntimeError("CRITICAL: MESHKOR_API_KEY is not set. Refusing to start in production mode.")
 from pydantic import BaseModel
 import uvicorn
 from kormic.registry.distributed import CentralRegistryAuthority
