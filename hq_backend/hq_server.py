@@ -171,6 +171,7 @@ def enroll_agent(req: EnrollRequest, authorization: str = Header(None)):
     
     # Extract the signed pedigree to send back
     pedigree_dict = temp_manager.record_store.get(ain)
+    db.add_twin(ain, req.manifest, json.dumps(pedigree_dict))
     return {"ain": ain, "pedigree": pedigree_dict}
 
 def start_hq(port: int = 8080):
