@@ -3,6 +3,8 @@ import requests
 import time
 import hashlib
 import json
+import threading
+import queue
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -12,6 +14,25 @@ CIRCUIT_BREAKER_COOLDOWN_SEC = 60
 
 # Module-level circuit breaker state
 _breaker_tripped_until = 0
+
+_event_queue = queue.Queue(maxsize=1000)
+
+def _event_worker():
+    while True:
+        try:
+            task = _event_queue.get()
+            if task is None:
+                break
+            url, payload, headers = task
+            requests.post(url, json=payload, headers=headers, timeout=5.0)
+            _event_queue.task_done()
+        except Exception as e:
+            logger.debug(f"Background event worker failed to send event: {e}")
+            _event_queue.task_done()
+
+_worker_thread = threading.Thread(target=_event_worker, daemon=True)
+_worker_thread.start()
+
 
 class KormicMeshKorIntegration:
     """
@@ -88,12 +109,6 @@ class KormicMeshKorIntegration:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
         try:
-            requests.post(
-                f"{self.hq_url}/record_event", 
-                json=payload, 
-                headers=headers,
-                timeout=NETWORK_TIMEOUT_SEC
-            )
-        except Exception as e:
-            logger.warning(f"MeshKor Event Logging Error: {str(e)}. Tripping circuit breaker.")
-            self._trip_breaker()
+            _event_queue.put_nowait((f"{self.hq_url}/record_event", payload, headers))
+        except queue.Full:
+            logger.warning("MeshKor event queue is full; dropping event.")
