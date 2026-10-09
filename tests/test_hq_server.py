@@ -66,3 +66,55 @@ def test_production_key_guard():
         # reload to clean state for subsequent tests
         os.environ['MESHKOR_API_KEY'] = 'test-key-123'
         importlib.reload(hq_backend.hq_server)
+
+def test_production_db_guard():
+    import importlib
+    import hq_backend.hq_db
+    
+    old_url = os.environ.get('MESHKOR_DATABASE_URL')
+    old_mode = os.environ.get('KORMIC_DEPLOYMENT_MODE')
+    
+    try:
+        os.environ['KORMIC_DEPLOYMENT_MODE'] = 'production'
+        if 'MESHKOR_DATABASE_URL' in os.environ:
+            del os.environ['MESHKOR_DATABASE_URL']
+            
+        with pytest.raises(RuntimeError) as excinfo:
+            importlib.reload(hq_backend.hq_db)
+            
+        assert "CRITICAL: MESHKOR_DATABASE_URL is not set" in str(excinfo.value)
+    finally:
+        if old_url:
+            os.environ['MESHKOR_DATABASE_URL'] = old_url
+        else:
+            if 'MESHKOR_DATABASE_URL' in os.environ:
+                del os.environ['MESHKOR_DATABASE_URL']
+        
+        if old_mode:
+            os.environ['KORMIC_DEPLOYMENT_MODE'] = old_mode
+        else:
+            if 'KORMIC_DEPLOYMENT_MODE' in os.environ:
+                del os.environ['KORMIC_DEPLOYMENT_MODE']
+                
+        importlib.reload(hq_backend.hq_db)
+
+@pytest.mark.asyncio
+async def test_event_ordering():
+    import hq_backend.hq_db as db
+    import time
+    
+    await db.init_pool()
+    await db.init_db()
+    
+    # insert two events 0.5s apart
+    await db.log_event("test_ain_1", "type1", {"data": "1"})
+    time.sleep(0.5)
+    await db.log_event("test_ain_1", "type2", {"data": "2"})
+    
+    events = await db.get_events(limit=2)
+    assert len(events) >= 2
+    assert events[0]['event_type'] == 'type2'
+    assert events[1]['event_type'] == 'type1'
+    assert events[0]['timestamp'] > events[1]['timestamp']
+    
+    await db.close_pool()

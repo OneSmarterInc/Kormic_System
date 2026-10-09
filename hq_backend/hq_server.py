@@ -23,7 +23,22 @@ if not VALID_API_KEY:
     else:
         raise RuntimeError("CRITICAL: MESHKOR_API_KEY is not set. Refusing to start in production mode.")
 
-app = FastAPI(title="MeshKor HQ")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init_pool()
+    await db.init_db()
+    if os.getenv("DEV_MODE") == "1":
+        twins = await db.get_all_twins()
+        if not twins:
+            await db.add_twin("KMC.AGNT.demo.001", {}, "encrypted_aes_payload_123")
+            await db.add_twin("KMC.AGNT.demo.002", {}, "encrypted_aes_payload_456")
+            await db.flag_suspect("KMC.AGNT.suspect.001", "Anomalous Database Query Volume")
+    yield
+    await db.close_pool()
+
+app = FastAPI(title="MeshKor HQ", lifespan=lifespan)
 
 # Initialize HQ State (Software custody for first customer launch)
 keys = SoftwareKeyCustody()
@@ -36,21 +51,6 @@ class SpendNonceRequest(BaseModel):
 # In-memory session tracking
 admin_challenges = {}
 active_admin_sessions = {}
-
-@app.on_event("startup")
-async def startup_event():
-    await db.init_pool()
-    await db.init_db()
-    if os.getenv("DEV_MODE") == "1":
-        twins = await db.get_all_twins()
-        if not twins:
-            await db.add_twin("KMC.AGNT.demo.001", {}, "encrypted_aes_payload_123")
-            await db.add_twin("KMC.AGNT.demo.002", {}, "encrypted_aes_payload_456")
-            await db.flag_suspect("KMC.AGNT.suspect.001", "Anomalous Database Query Volume")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await db.close_pool()
 
 @app.get("/snapshot")
 async def get_snapshot():

@@ -14,4 +14,11 @@ Please be aware of the following design shortcuts taken strictly for the pilot p
    Currently, the \agent_type\ (e.g., \"Student_agent"\) is passed directly as the tier prefix, producing AINs like \KMC.Student_agent.agent_x...\ instead of the formal two-tier \KMC.BLD\ / \KMC.DPL\ model. 
    *Enforced Mode Fix:* Enforced mode will strictly require two-tier enrollment, where each agent class is a BAIN and each instance is a DAIN deriving from it.
 
+3. **Ephemeral Root Key (No Custody Persistence):**
+   The root key and epoch-1 key are generated in memory at process start and are not persisted. Every HQ restart mints a new root; birth records signed before the restart are signed by a key the server no longer holds, and any sidecar that pinned `/root_key` is pinned to a stale key. In advisory mode nothing verifies, so nothing breaks; this must be resolved (persist the root through the custody backend) before enforced mode.
+
 These shortcuts are acceptable for the pilot (since nothing is enforced yet), but **must be resolved** before transitioning to Phase 5 (Enforced Mode/Fail-Closed).
+
+## HQ deployment shape (pilot)
+
+HQ runs as exactly one process backed by Postgres via `MESHKOR_DATABASE_URL`; the root key, the central registry's nonce and revocation state, admin challenges and admin sessions are process memory; running two HQ replicas is unsupported and will produce two authorities with two root keys. Multi-instance is a Phase 5 item that depends on the Part C custody backend.

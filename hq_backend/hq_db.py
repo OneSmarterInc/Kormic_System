@@ -3,13 +3,21 @@ import time
 import os
 import asyncpg
 
-DB_URL = os.getenv("DATABASE_URL", "postgresql://kormic:kormicpass@localhost:5438/kormic")
+KORMIC_DEPLOYMENT_MODE = os.getenv("KORMIC_DEPLOYMENT_MODE", "production")
+DB_URL = os.getenv("MESHKOR_DATABASE_URL")
+if not DB_URL:
+    if KORMIC_DEPLOYMENT_MODE == "development":
+        DB_URL = "postgresql://meshkor:meshkor@localhost:5439/meshkor_hq"
+        import logging
+        logging.warning("MESHKOR_DATABASE_URL unset. Using local dev HQ database. DO NOT USE IN PRODUCTION.")
+    else:
+        raise RuntimeError("CRITICAL: MESHKOR_DATABASE_URL is not set. Refusing to start in production mode.")
 
 pool = None
 
 async def init_pool():
     global pool
-    pool = await asyncpg.create_pool(DB_URL)
+    pool = await asyncpg.create_pool(DB_URL, statement_cache_size=0)
 
 async def close_pool():
     global pool
@@ -22,7 +30,7 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS twins (
                 ain TEXT PRIMARY KEY,
                 status TEXT,
-                last_active REAL,
+                last_active DOUBLE PRECISION,
                 manifest_json TEXT,
                 encrypted_payload TEXT
             )
@@ -31,7 +39,7 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS suspects (
                 ain TEXT PRIMARY KEY,
                 reason TEXT,
-                blocked_at REAL
+                blocked_at DOUBLE PRECISION
             )
         ''')
         await conn.execute('''
@@ -40,7 +48,7 @@ async def init_db():
                 ain TEXT,
                 event_type TEXT,
                 details TEXT,
-                timestamp REAL
+                timestamp DOUBLE PRECISION
             )
         ''')
         
@@ -69,10 +77,16 @@ async def init_db():
                 rationale TEXT,
                 outcome_ref TEXT,
                 verdict TEXT,
-                timestamp REAL,
+                timestamp DOUBLE PRECISION,
                 confirmed_by TEXT
             )
         ''')
+        
+        # Idempotent alters in case tables exist
+        await conn.execute('ALTER TABLE twins ALTER COLUMN last_active TYPE double precision')
+        await conn.execute('ALTER TABLE suspects ALTER COLUMN blocked_at TYPE double precision')
+        await conn.execute('ALTER TABLE event_logs ALTER COLUMN timestamp TYPE double precision')
+        await conn.execute('ALTER TABLE capability_requests ALTER COLUMN timestamp TYPE double precision')
         
     await seed_governance_data()
 
