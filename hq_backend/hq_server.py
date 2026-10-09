@@ -1,7 +1,17 @@
 from fastapi import FastAPI, Header, HTTPException
 import os
-
 import logging
+import asyncio
+from pydantic import BaseModel
+import uvicorn
+import dataclasses
+import secrets
+import json
+
+from kormic.registry.distributed import CentralRegistryAuthority
+from kormic.crypto.software import SoftwareKeyCustody
+
+import hq_backend.hq_db as db
 
 KORMIC_DEPLOYMENT_MODE = os.getenv("KORMIC_DEPLOYMENT_MODE", "production")
 VALID_API_KEY = os.getenv("MESHKOR_API_KEY")
@@ -12,10 +22,6 @@ if not VALID_API_KEY:
         logging.warning("MESHKOR_API_KEY is unset. Running in development mode with default key. DO NOT USE IN PRODUCTION.")
     else:
         raise RuntimeError("CRITICAL: MESHKOR_API_KEY is not set. Refusing to start in production mode.")
-from pydantic import BaseModel
-import uvicorn
-from kormic.registry.distributed import CentralRegistryAuthority
-from kormic.crypto.software import SoftwareKeyCustody
 
 app = FastAPI(title="MeshKor HQ")
 
@@ -27,21 +33,32 @@ central = CentralRegistryAuthority(keys)
 class SpendNonceRequest(BaseModel):
     nonce: str
 
-import dataclasses
-import secrets
-import json
-
 # In-memory session tracking
 admin_challenges = {}
 active_admin_sessions = {}
 
+@app.on_event("startup")
+async def startup_event():
+    await db.init_pool()
+    await db.init_db()
+    if os.getenv("DEV_MODE") == "1":
+        twins = await db.get_all_twins()
+        if not twins:
+            await db.add_twin("KMC.AGNT.demo.001", {}, "encrypted_aes_payload_123")
+            await db.add_twin("KMC.AGNT.demo.002", {}, "encrypted_aes_payload_456")
+            await db.flag_suspect("KMC.AGNT.suspect.001", "Anomalous Database Query Volume")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await db.close_pool()
+
 @app.get("/snapshot")
-def get_snapshot():
+async def get_snapshot():
     snap = central.snapshot()
     return dataclasses.asdict(snap)
 
 @app.get("/admin/challenge")
-def get_admin_challenge():
+async def get_admin_challenge():
     challenge = secrets.token_hex(32)
     admin_challenges[challenge] = True
     return {"challenge": challenge}
@@ -52,22 +69,24 @@ class AdminAuthRequest(BaseModel):
     pub_key_pem: str
 
 @app.post("/admin/auth")
-def admin_auth(req: AdminAuthRequest):
+async def admin_auth(req: AdminAuthRequest):
     if req.challenge not in admin_challenges:
         return {"error": "Invalid challenge"}
     
     # Real Cryptographic Verification of YubiKey Signature
-    try:
+    def verify_sig():
         from cryptography.hazmat.primitives.serialization import load_pem_public_key
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives import hashes
-        
         pub_key = load_pem_public_key(req.pub_key_pem.encode('utf-8'))
         pub_key.verify(
             bytes.fromhex(req.signature_hex), 
             req.challenge.encode('utf-8'), 
             ec.ECDSA(hashes.SHA256())
         )
+        
+    try:
+        await asyncio.to_thread(verify_sig)
     except Exception as e:
         return {"error": f"Hardware Signature Cryptographically Invalid: {str(e)}"}
         
@@ -76,47 +95,40 @@ def admin_auth(req: AdminAuthRequest):
     active_admin_sessions[session_token] = True
     return {"session_token": session_token}
 
-import hq_backend.hq_db as db
-
-@app.on_event("startup")
-def startup_event():
-    db.init_db()
-    if os.getenv("DEV_MODE") == "1" and not db.get_all_twins():
-        db.add_twin("KMC.AGNT.demo.001", {}, "encrypted_aes_payload_123")
-        db.add_twin("KMC.AGNT.demo.002", {}, "encrypted_aes_payload_456")
-        db.flag_suspect("KMC.AGNT.suspect.001", "Anomalous Database Query Volume")
-
 @app.get("/admin/twins")
-def list_twins(token: str):
+async def list_twins(token: str):
     if token not in active_admin_sessions: return {"error": "Unauthorized."}
-    return {"twins": db.get_all_twins()}
+    twins = await db.get_all_twins()
+    return {"twins": twins}
 
 @app.get("/admin/agents")
-def list_active_agents(token: str):
+async def list_active_agents(token: str):
     if token not in active_admin_sessions: return {"error": "Unauthorized."}
-    return {"agents": db.get_active_agents()}
+    agents = await db.get_active_agents()
+    return {"agents": agents}
 
 @app.get("/admin/suspects")
-def list_suspected_agents(token: str):
+async def list_suspected_agents(token: str):
     if token not in active_admin_sessions: return {"error": "Unauthorized."}
-    return {"suspects": db.get_suspects()}
+    suspects = await db.get_suspects()
+    return {"suspects": suspects}
 
 @app.post("/admin/revoke")
-def revoke_agent(req: dict):
+async def revoke_agent(req: dict):
     if req.get("token") not in active_admin_sessions: return {"error": "Unauthorized."}
     ain = req.get('ain')
     # 1. Update Database
-    db.revoke_agent_db(ain)
+    await db.revoke_agent_db(ain)
     # 2. Inform Central Registry (so the next Snapshot includes the revocation)
     central.revoke_agent(ain)
     return {"status": f"Agent {ain} successfully revoked and broadcasted to Sidecars."}
 
 @app.post("/admin/unblock")
-def unblock_agent(req: dict):
+async def unblock_agent(req: dict):
     if req.get("token") not in active_admin_sessions: return {"error": "Unauthorized."}
     ain = req.get('ain')
     # Update Database
-    db.unblock_agent_db(ain)
+    await db.unblock_agent_db(ain)
     # Remove from central registry revocations if it was there
     if ain in central.revoked_agents:
         central.revoked_agents.remove(ain)
@@ -124,20 +136,20 @@ def unblock_agent(req: dict):
     return {"status": f"Agent {ain} successfully unblocked and restored."}
 
 @app.post("/spend_nonce")
-def spend_nonce(req: SpendNonceRequest):
+async def spend_nonce(req: SpendNonceRequest):
     central.spend_nonce(req.nonce)
     return {"status": "ok"}
 
 @app.get("/admin/twins/{ain}/download")
-def download_twin(ain: str, token: str):
+async def download_twin(ain: str, token: str):
     if token not in active_admin_sessions: return {"error": "Unauthorized."}
-    payload = db.get_encrypted_twin(ain)
+    payload = await db.get_encrypted_twin(ain)
     if not payload:
         return {"error": "Twin not found."}
     return {"encrypted_payload": payload}
 
 @app.get("/root_key")
-def get_root_key():
+async def get_root_key():
     return {"root_pub": keys.get_root_public_key().hex()}
 
 class EnrollRequest(BaseModel):
@@ -150,35 +162,28 @@ class EnrollRequest(BaseModel):
     agent_pub_key: str = ""
 
 @app.post("/enroll")
-def enroll_agent(req: EnrollRequest, authorization: str = Header(None)):
+async def enroll_agent(req: EnrollRequest, authorization: str = Header(None)):
     if authorization != f"Bearer {VALID_API_KEY}":
         raise HTTPException(status_code=401, detail="Invalid Deployment Credential")
     
     # Finding C: Merge constitution_hash into manifest so it is cryptographically sealed
     if req.constitution_hash:
         req.manifest["constitution_hash"] = req.constitution_hash
-    # HQ signs the birth record locally, holding the private key safely in the cloud
-    from kormic.manager import AgentManager
-    from kormic.storage.sqlite import SQLiteRecordStore
-    from kormic.models.pedigree import Pedigree
-    
-    # We use a temporary MemoryRecordStore just to run the generation logic.
-    # We don't persist it in HQ memory because the sidecar owns the operational history.
-    temp_manager = AgentManager(keys, SQLiteRecordStore(":memory:"), default_epoch=1, registry_reader=central)
-    ain, _ = temp_manager.register_new_agent(
-        req.agent_type, req.entity_ref, req.instance, req.real_world_id, req.manifest, agent_pub_key=req.agent_pub_key
-    )
-    
-    # Extract the signed pedigree to send back
-    pedigree_dict = temp_manager.record_store.get(ain)
-    db.add_twin(ain, req.manifest, json.dumps(pedigree_dict))
+        
+    def generate_birth_record():
+        from kormic.manager import AgentManager
+        from kormic.storage.sqlite import SQLiteRecordStore
+        
+        # We use a temporary MemoryRecordStore just to run the generation logic.
+        temp_manager = AgentManager(keys, SQLiteRecordStore(":memory:"), default_epoch=1, registry_reader=central)
+        ain, _ = temp_manager.register_new_agent(
+            req.agent_type, req.entity_ref, req.instance, req.real_world_id, req.manifest, agent_pub_key=req.agent_pub_key
+        )
+        return ain, temp_manager.record_store.get(ain)
+
+    ain, pedigree_dict = await asyncio.to_thread(generate_birth_record)
+    await db.add_twin(ain, req.manifest, json.dumps(pedigree_dict))
     return {"ain": ain, "pedigree": pedigree_dict}
-
-def start_hq(port: int = 8080):
-    uvicorn.run("hq_backend.hq_server:app", host="0.0.0.0", port=port, reload=False)
-
-if __name__ == '__main__':
-    start_hq()
 
 class EventRecord(BaseModel):
     ain: str
@@ -186,17 +191,23 @@ class EventRecord(BaseModel):
     event_hash: str = None
 
 @app.post('/record_event')
-def record_event_route(req: EventRecord, authorization: str = Header(None)):
+async def record_event_route(req: EventRecord, authorization: str = Header(None)):
     if authorization != f"Bearer {VALID_API_KEY}":
         raise HTTPException(status_code=401, detail="Invalid Deployment Credential")
     
     # Finding A: Store hash, never data
     details = {"event_hash": req.event_hash} if req.event_hash else {}
-    db.log_event(req.ain, req.event_description, details)
+    await db.log_event(req.ain, req.event_description, details)
     return {'status': 'ok'}
 
 @app.get('/admin/logs')
-def get_admin_logs(token: str):
+async def get_admin_logs(token: str):
     if token not in active_admin_sessions: return {'error': 'Unauthorized.'}
-    return {'logs': db.get_events()}
+    logs = await db.get_events()
+    return {'logs': logs}
 
+def start_hq(port: int = 8080):
+    uvicorn.run("hq_backend.hq_server:app", host="0.0.0.0", port=port, reload=False)
+
+if __name__ == '__main__':
+    start_hq()
