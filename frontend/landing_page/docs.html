@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — MeshKor Developer & Architecture Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --docs-sidebar-w: 280px;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    .docs-layout {
+      display: flex;
+      max-width: 1440px;
+      margin: 0 auto;
+      min-height: calc(100vh - 64px);
+    }
+    /* Sticky Sidebar */
+    .docs-sidebar {
+      width: var(--docs-sidebar-w);
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+      padding: 32px 20px;
+      flex-shrink: 0;
+      background: rgba(1, 1, 2, 0.6);
+      backdrop-filter: blur(8px);
+    }
+    .docs-sidebar::-webkit-scrollbar { width: 4px; }
+    .docs-sidebar::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    
+    .sidebar-category {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-2);
+      font-weight: 700;
+      margin: 24px 0 8px 12px;
+    }
+    .sidebar-category:first-child { margin-top: 0; }
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13.5px;
+      color: var(--muted);
+      font-weight: 500;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+    .sidebar-link:hover {
+      color: var(--text);
+      background: var(--panel);
+    }
+    .sidebar-link.active {
+      color: #fff;
+      background: rgba(245, 80, 54, 0.15);
+      border-left: 2px solid var(--primary);
+      font-weight: 600;
+    }
+
+    /* Content Area */
+    .docs-content {
+      flex: 1;
+      padding: 48px 64px 96px;
+      max-width: 960px;
+    }
+    .docs-content h1 {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+    .docs-content h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 48px 0 16px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      letter-spacing: -0.02em;
+    }
+    .docs-content h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 28px 0 12px;
+    }
+    .docs-content p {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 18px;
+    }
+    .docs-content ul, .docs-content ol {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+      padding-left: 24px;
+    }
+    .docs-content li { margin-bottom: 8px; }
+    .docs-content strong { color: var(--text); }
+
+    /* Code Blocks */
+    .code-box {
+      background: #030407;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin: 20px 0 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #07090e;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted-2);
+      font-family: var(--mono);
+    }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: var(--panel); color: #fff; }
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #f1f5f9;
+    }
+
+    /* Alerts */
+    .alert-box {
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 24px 0;
+      font-size: 14.5px;
+      line-height: 1.6;
+      display: flex;
+      gap: 14px;
+    }
+    .alert-note { background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; color: #bae6fd; }
+    .alert-tip { background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--green); color: #a7f3d0; }
+    .alert-warn { background: rgba(245, 80, 54, 0.08); border-left: 3px solid var(--primary); color: #fecdd3; }
+
+    @media (max-width: 900px) {
+      .docs-sidebar { display: none; }
+      .docs-content { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="field" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="wrap nav">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <a href="index.html" class="brand"><span class="eyebrow">//</span> MeshKor</a>
+        <span style="font-size: 12px; color: var(--muted-2); background: var(--panel); border: 1px solid var(--line); padding: 2px 8px; border-radius: 999px; font-family: var(--mono);">v1.0.4-pilot</span>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="architecture.html" class="hide-m">Architecture</a>
+        <a href="sandbox.html" class="hide-m">Sandbox</a>
+        <a href="recovery.html" class="hide-m">Recovery</a>
+        <a href="../dashboard/index.html" class="btn btn-primary">Open Dashboard →</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <!-- LEFT SIDEBAR -->
+    <aside class="docs-sidebar">
+      <div class="sidebar-category">Overview & Concepts</div>
+      <a href="#intro" class="sidebar-link active">The Trust Thesis</a>
+      <a href="#planes" class="sidebar-link">Control vs. Enforcement</a>
+      <a href="#ain-format" class="sidebar-link">The AIN Identifier</a>
+
+      <div class="sidebar-category">Getting Started</div>
+      <a href="#quickstart" class="sidebar-link">10-Minute Onboarding</a>
+      <a href="#installation" class="sidebar-link">Package Installation</a>
+      <a href="#environment" class="sidebar-link">Environment Config</a>
+
+      <div class="sidebar-category">Database Integration</div>
+      <a href="#customer-db" class="sidebar-link">Customer DB Changes</a>
+      <a href="#data-privacy" class="sidebar-link">Salted Hash Anchoring</a>
+
+      <div class="sidebar-category">SDK API Reference</div>
+      <a href="#init-client" class="sidebar-link">Client Initialization</a>
+      <a href="#method-enroll" class="sidebar-link">enroll_agent()</a>
+      <a href="#method-record" class="sidebar-link">record_event()</a>
+      <a href="#method-check" class="sidebar-link">check_agent_executable()</a>
+
+      <div class="sidebar-category">Modes & Enforcement</div>
+      <a href="#advisory-mode" class="sidebar-link">Advisory Mode (Tier 1)</a>
+      <a href="#enforced-mode" class="sidebar-link">Enforced Mode (Tier 2)</a>
+      <a href="#switching-modes" class="sidebar-link">Remote Mode Toggling</a>
+
+      <div class="sidebar-category">Governance & Recovery</div>
+      <a href="#behavior-monitor" class="sidebar-link">Behavioral Drift Engine</a>
+      <a href="#twin-snapshots" class="sidebar-link">K-Snapshot Cryptography</a>
+      <a href="#twin-waking" class="sidebar-link">Twin Waking & Epoch 2</a>
+    </aside>
+
+    <!-- RIGHT CONTENT AREA -->
+    <main class="docs-content">
+      <section id="intro">
+        <h1>MeshKor Documentation</h1>
+        <p class="lede" style="font-size: 18px; color: var(--text);">
+          MeshKor is the zero-trust cryptographic firewall and identity governance engine designed specifically for autonomous AI agents.
+        </p>
+        <p>
+          As AI agents take autonomous actions—calling external APIs, querying internal databases, and communicating with customers—traditional API security fails. An API token proves who gave permission, but cannot prove <em>which specific software agent executed the action</em>, <em>whether it stayed inside its authorized manifest</em>, or <em>whether its behavioral accuracy has drifted</em>.
+        </p>
+
+        <div class="alert-box alert-note">
+          <div><strong>Core Design Principle:</strong> MeshKor holds cryptographic proofs and salted commitments, <strong>never raw customer data</strong>. Your sensitive prompts and student/patient records remain strictly on your infrastructure.</div>
+        </div>
+      </section>
+
+      <section id="planes">
+        <h2>Control Plane vs. Enforcement Plane</h2>
+        <p>
+          MeshKor utilizes a strict split-plane architecture:
+        </p>
+        <ul>
+          <li><strong>Control Plane (Cloud HQ):</strong> Hosted by MeshKor (AWS EC2). Holds master epoch signing roots (ML-DSA-87 post-quantum algorithms), verifies organizational API keys, monitors behavioral drift telemetry, and manages encrypted twin states.</li>
+          <li><strong>Enforcement Plane (Embedded Python Sidecar):</strong> Runs directly inside your application via <code>pip install meshkor</code>. Executes sub-millisecond local manifest checks, calculates local SHA-256 event hashes, and enforces execution blocks in real time.</li>
+        </ul>
+      </section>
+
+      <section id="ain-format">
+        <h2>The AIN (Agent Identification Number)</h2>
+        <p>
+          Every agent registered with MeshKor receives a unique, unforgeable structured identifier adhering to the following schema:
+        </p>
+        <div class="code-box">
+          <div class="code-header"><span>AIN Schema</span></div>
+          <pre>KMC.&lt;agent_type&gt;.&lt;entity_ref&gt;.&lt;instance_id&gt;.&lt;realid_hash&gt;</pre>
+        </div>
+        <p>
+          <strong>Valid Agent Types:</strong>
+        </p>
+        <ul>
+          <li><code>STU</code>: Student Agent (Educational personas)</li>
+          <li><code>UNI</code>: University / Institution Agent</li>
+          <li><code>CMP</code>: Company Internal Agent (Background workers, Celery jobs)</li>
+          <li><code>BLD</code>: Software Build Blueprint (CI/CD binary release)</li>
+          <li><code>DPL</code>: Deployment Clone (Running container instances)</li>
+        </ul>
+      </section>
+
+      <section id="quickstart">
+        <h2>10-Minute Quickstart Guide</h2>
+        <p>Follow these steps to integrate MeshKor into your existing agent pipeline:</p>
+
+        <h3 id="installation">Step 1: Install the SDK</h3>
+        <p>MeshKor is bundled as a pure-Python library with zero Docker dependencies:</p>
+        <div class="code-box">
+          <div class="code-header"><span>Terminal</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre>pip install meshkor</pre>
+        </div>
+
+        <h3 id="environment">Step 2: Set Environment Variables</h3>
+        <p>Add your Organization ID and Secret API Key to your project's <code>.env</code> file. (The Cloud HQ URL defaults automatically to our production endpoint):</p>
+        <div class="code-box">
+          <div class="code-header"><span>.env</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre>MESHKOR_ORG_ID=org_kormic
+MESHKOR_API_KEY=mk_live_8f3a92b1c4e7...
+# Optional override: MESHKOR_HQ_URL=http://44.193.27.158:8080</pre>
+        </div>
+
+        <h3>Step 3: Wrap Your Agent Workflow</h3>
+        <p>Initialize the integration and enroll your agent on startup:</p>
+        <div class="code-box">
+          <div class="code-header"><span>agent.py</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><span style="color:#f43f5e">from</span> meshkor.integrations.kormic <span style="color:#f43f5e">import</span> KormicMeshKorIntegration
+
+# 1. Initialize client (auto-loads from .env)
+meshkor = KormicMeshKorIntegration()
+
+# 2. Define operational manifest & constitution hash
+manifest = {
+    "allowed_tools": ["vector_search", "academic_calculator"],
+    "read_scopes": ["student_profile", "course_catalog"],
+    "allowed_egress": ["api.university.edu"]
+}
+constitution_hash = "876d92a96c6d068b96088ee0dcee6070fcf750b360ed581365f2b96a51708250"
+
+# 3. Enroll Agent with Cloud HQ
+ain = meshkor.enroll_agent(
+    agent_class="STU",
+    instance_ref="student_advising_bot_01",
+    manifest=manifest,
+    constitution_hash=constitution_hash
+)
+print(f"[+] Agent enrolled with verified AIN: {ain}")
+
+# 4. Record actions in real time
+meshkor.record_event(
+    ain=ain,
+    event_description="agent_sent_message",
+    event_data={"query": "Evaluate fit against Wright State criteria"}
+)</pre>
+        </div>
+      </section>
+
+      <section id="customer-db">
+        <h2>Customer Database Integration</h2>
+        <p>
+          <strong>What changes do you need to make to your internal database?</strong>
+        </p>
+        <p>
+          <strong>Only ONE column is required:</strong> add an <code>ain</code> column to your existing Agent or User table.
+        </p>
+        <div class="code-box">
+          <div class="code-header"><span>PostgreSQL / MySQL Schema Migration</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre>-- Add single AIN tracking column to your existing agent model
+ALTER TABLE agent_identities ADD COLUMN ain VARCHAR(128) UNIQUE;
+
+-- Optional index for high-speed lookups
+CREATE INDEX idx_agents_ain ON agent_identities(ain);</pre>
+        </div>
+        <p>
+          You do not need to store certificates, encryption keys, or historical blockchains. The MeshKor sidecar handles all cryptographic signing and verification automatically.
+        </p>
+
+        <h3 id="data-privacy">Salted Hash Anchoring (HIPAA & SOC2)</h3>
+        <p>
+          When you call <code>record_event(ain, description, event_data)</code>:
+        </p>
+        <ol>
+          <li>The sidecar canonicalizes <code>event_data</code> into standard sorted JSON.</li>
+          <li>It generates a local SHA-256 hash: <code>SHA-256(canonical_event_json)</code>.</li>
+          <li>Only the 32-byte cryptographic hash is transmitted to Cloud HQ.</li>
+        </ol>
+        <p>
+          If your event contains sensitive passwords, HIPAA patient data, or proprietary prompts, <strong>none of it ever leaves your machine</strong>.
+        </p>
+      </section>
+
+      <section id="api-ref">
+        <h2>Core SDK API Reference</h2>
+
+        <h3 id="init-client"><code>KormicMeshKorIntegration(hq_url=None)</code></h3>
+        <p>
+          Instantiates the singleton integration client. Reads <code>MESHKOR_HQ_URL</code>, <code>MESHKOR_ORG_ID</code>, and <code>MESHKOR_API_KEY</code> from the environment.
+        </p>
+
+        <h3 id="method-enroll"><code>enroll_agent(agent_class, instance_ref, manifest, constitution_hash) -> str</code></h3>
+        <p>Registers an agent with Cloud HQ and returns its unforgeable AIN string.</p>
+        <ul>
+          <li><code>agent_class</code> (str): Role type (e.g. <code>"STU"</code>, <code>"UNI"</code>, <code>"CMP"</code>).</li>
+          <li><code>instance_ref</code> (str): Unique business identifier for this specific agent.</li>
+          <li><code>manifest</code> (dict): Security guardrail bounds (tools, scopes, egress).</li>
+          <li><code>constitution_hash</code> (str): 64-character SHA-256 hash of the agent's core instructions/constitution.</li>
+        </ul>
+
+        <h3 id="method-record"><code>record_event(ain, event_description, event_data=None, metrics=None)</code></h3>
+        <p>Appends an action to the agent's pedigree. Operates via an asynchronous, non-blocking background thread.</p>
+        <ul>
+          <li><code>ain</code> (str): The verified AIN of the agent.</li>
+          <li><code>event_description</code> (str): Type of event (e.g. <code>"intent_classified"</code>, <code>"agent_sent_message"</code>).</li>
+          <li><code>event_data</code> (dict, optional): Contextual action dictionary (hashed locally).</li>
+          <li><code>metrics</code> (dict, optional): Quality metrics evaluated by the Behavior Monitor.</li>
+        </ul>
+
+        <h3 id="method-check"><code>check_agent_executable(ain)</code></h3>
+        <p>
+          Pre-execution gate. If the organization is in <strong>Enforced Mode</strong> and the agent is quarantined or revoked, raises <code>MeshKorSecurityBlockException</code> to abort the tool or message.
+        </p>
+      </section>
+
+      <section id="modes">
+        <h2>Operating Modes & Enforcement</h2>
+        
+        <h3 id="advisory-mode">Advisory Mode (Tier 1 — Free On-Ramp)</h3>
+        <p>
+          Default mode for all newly provisioned organizations. The sidecar monitors agents, logs tamper-evident event hashes, and flags policy breaches on your dashboard. <strong>It will never throw an exception or block live agent traffic</strong>, ensuring zero operational risk during testing.
+        </p>
+
+        <h3 id="enforced-mode">Enforced Mode (Tier 2 — Enterprise Compliance)</h3>
+        <p>
+          When upgraded to Enforced Mode, MeshKor acts as a hard execution gate. If an agent attempts an action outside its manifest, exceeds behavioral drift thresholds, or has been revoked by an administrator, the SDK raises:
+        </p>
+        <div class="code-box">
+          <div class="code-header"><span>Exception Handling</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><span style="color:#f43f5e">from</span> meshkor.integrations.kormic <span style="color:#f43f5e">import</span> MeshKorSecurityBlockException
+
+<span style="color:#f43f5e">try</span>:
+    meshkor.record_event(ain, "call_unauthorized_tool")
+<span style="color:#f43f5e">except</span> MeshKorSecurityBlockException <span style="color:#f43f5e">as</span> e:
+    # Agent was automatically halted before unauthorized action occurred
+    logger.critical(f"Agent blocked by MeshKor: {e}")</pre>
+        </div>
+
+        <h3 id="switching-modes">Remote Mode Switching</h3>
+        <p>
+          You do not need to modify client code to change tiers. When an organization's subscription upgrades on the dashboard, Cloud HQ transmits the <code>mode: "enforced"</code> status to the sidecar during the next check-in.
+        </p>
+      </section>
+
+      <section id="recovery">
+        <h2>Governance & Catastrophic Recovery</h2>
+
+        <h3 id="behavior-monitor">The Behavioral Drift Engine</h3>
+        <p>
+          MeshKor evaluates rolling window metrics:
+        </p>
+        <ul>
+          <li><strong>Accuracy:</strong> Flags when &lt; 80%, Halts when &lt; 50%.</li>
+          <li><strong>Overconfidence:</strong> Flags when &gt; 20%, Halts when &gt; 40%.</li>
+          <li><strong>Guardrail Breaches:</strong> Flags when &gt; 10%, Halts when &gt; 30%.</li>
+          <li><strong>Latency Drift:</strong> Flags when &gt; 1.5x baseline, Halts when &gt; 3.0x baseline.</li>
+        </ul>
+        <p>
+          Agents generating a <code>HALT</code> report are automatically quarantined in the PostgreSQL <code>suspects</code> table.
+        </p>
+
+        <h3 id="twin-snapshots">The K-Snapshot Engine (k = 5)</h3>
+        <p>
+          Every 5 events, the full state of an agent is encrypted with <strong>AES-256-GCM</strong>. The 256-bit symmetric key is split into 5 Shamir shares across Galois Field GF(256). The raw key is zeroized from memory.
+        </p>
+
+        <h3 id="twin-waking">Twin Waking (Epoch 2 Resurrections)</h3>
+        <p>
+          When an agent is restored through an authorized hardware key ceremony, Cloud HQ recertifies its birth record under <strong>Epoch 2</strong> and reactivates its status. The agent resumes execution with clean credentials.
+        </p>
+      </section>
+
+      <div style="margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 13px; color: var(--muted-2);">Need assistance?</div>
+          <div style="font-weight: 600;">Contact OneSmarter Security Engineering</div>
+        </div>
+        <a href="../dashboard/index.html" class="btn btn-primary">Open Organization Dashboard →</a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function copyCode(btn) {
+      const pre = btn.closest('.code-box').querySelector('pre');
+      navigator.clipboard.writeText(pre.innerText);
+      const old = btn.innerText;
+      btn.innerText = "Copied!";
+      setTimeout(() => btn.innerText = old, 1800);
+    }
+
+    // Scroll active link detection
+    const sections = document.querySelectorAll('section[id], h2[id], h3[id]');
+    const navLinks = document.querySelectorAll('.sidebar-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(sec => {
+        const top = sec.offsetTop - 100;
+        if (window.scrollY >= top) current = sec.getAttribute('id');
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshKor Super-Admin Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #05070d;
+            --bg-card: #0b111e;
+            --border: #1a263d;
+            --primary: #38bdf8;
+            --emerald: #10b981;
+            --rose: #f43f5e;
+            --amber: #f59e0b;
+            --purple: #a855f7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        header {
+            background: #080d18;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .badge-purple { background: rgba(168, 85, 247, 0.15); color: var(--purple); border: 1px solid var(--purple); }
+        .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald); border: 1px solid var(--emerald); }
+        .badge-rose { background: rgba(244, 63, 94, 0.15); color: var(--rose); border: 1px solid var(--rose); }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber); border: 1px solid var(--amber); }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-main);
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        .btn:hover { background: #162035; }
+        .btn-primary { background: var(--primary); color: #000; border: none; }
+        .btn-primary:hover { background: #7dd3fc; }
+        .btn-danger { background: var(--rose); color: #fff; border: none; }
+        .btn-danger:hover { background: #e11d48; }
+
+        main { flex: 1; padding: 2rem; max-width: 1500px; margin: 0 auto; width: 100%; }
+
+        /* Hardware Auth Screen */
+        #authScreen {
+            max-width: 450px;
+            margin: 6rem auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.05);
+        }
+
+        .yubi-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem;
+            background: rgba(56, 189, 248, 0.1);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+        }
+
+        /* Console Screen */
+        #consoleScreen { display: none; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+        .nav-tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.75rem 1rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        td { padding: 1rem; border-bottom: 1px solid #131c2e; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+        tr:hover td { background: rgba(22, 32, 53, 0.4); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="font-weight: 800; font-size: 1.1rem; color: #fff;">MeshKor HQ</div>
+            <span class="badge badge-purple">SUPER-ADMIN</span>
+        </div>
+        <div id="authStatusPill">
+            <span class="badge badge-rose">FIPS LOCKED</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- 1. HARDWARE KEY AUTHENTICATION SCREEN -->
+        <div id="authScreen">
+            <div class="yubi-icon">🔑</div>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Hardware Authorization</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                Requires physical Master YubiKey in USB slot. Challenge-Response authenticated over Slot 9C ECC.
+            </p>
+            <div style="margin-bottom: 1.25rem; text-align: left;">
+                <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem;">YubiKey PIN</label>
+                <input type="password" id="yubiPin" style="width: 100%; padding: 0.6rem; background: #05070d; border: 1px solid var(--border); border-radius: 6px; color: #fff;" placeholder="••••••">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; padding: 0.75rem;" onclick="triggerHardwareAuth()">
+                Touch YubiKey & Authenticate
+            </button>
+            <div id="authStatusMsg" style="margin-top: 1rem; font-size: 0.8rem; color: var(--amber); display: none;">
+                >>> PLEASE TOUCH THE FLASHING GOLD CONTACT ON YOUR YUBIKEY <<<
+            </div>
+        </div>
+
+        <!-- 2. SUPER-ADMIN COMMAND CONSOLE (Post-Auth) -->
+        <div id="consoleScreen">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h1 style="font-size: 1.75rem; font-weight: 800;">Fleet Command Center</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Global authority over all multi-tenant organizations, twins, and cryptographic epochs.</p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-danger" onclick="triggerGlobalEmergencyRevocation()">EMERGENCY: Global Kill Switch</button>
+                    <button class="btn" onclick="logoutAdmin()">Lock Session</button>
+                </div>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchNav('tabOrgs', this)">Tenant Organizations</button>
+                <button class="nav-tab" onclick="switchNav('tabGlobalTwins', this)">Global Twins Vault</button>
+                <button class="nav-tab" onclick="switchNav('tabGlobalSuspects', this)">Suspect Quarantines</button>
+                <button class="nav-tab" onclick="switchNav('tabGlobalLogs', this)">Global Audit Trail</button>
+            </div>
+
+            <!-- TAB: Organizations -->
+            <div id="tabOrgs" class="tab-panel active card">
+                <h3 style="margin-bottom: 1rem;">Registered Tenant Organizations</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Org ID</th>
+                            <th>Company Name</th>
+                            <th>Admin Email</th>
+                            <th>Security Tier</th>
+                            <th>Twins</th>
+                            <th>Suspects</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orgsTableBody">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading organizations...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB: Global Twins Vault -->
+            <div id="tabGlobalTwins" class="tab-panel card">
+                <h3 style="margin-bottom: 1rem;">Global Agent Twins (All Tenants)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Agent ID (AIN)</th>
+                            <th>Tenant Org</th>
+                            <th>Status</th>
+                            <th>Epoch</th>
+                            <th>Last Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalTwinsTableBody">
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading global twins...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB: Suspect Quarantines -->
+            <div id="tabGlobalSuspects" class="tab-panel card">
+                <h3 style="margin-bottom: 1rem; color: var(--rose);">Flagged / Blocked Suspects</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Agent ID (AIN)</th>
+                            <th>Tenant Org</th>
+                            <th>Forensic Reason</th>
+                            <th>Quarantine Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalSuspectsTableBody">
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No suspected agents found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB: Global Logs -->
+            <div id="tabGlobalLogs" class="tab-panel card">
+                <h3 style="margin-bottom: 1rem;">Global Event Telemetry Stream</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Tenant Org</th>
+                            <th>Agent ID</th>
+                            <th>Event Type</th>
+                            <th>Event Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalLogsTableBody">
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading audit trail...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const HQ_API = "http://44.193.27.158:8080";
+        let superToken = null;
+
+        function switchNav(id, btn) {
+            document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+            document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+            document.getElementById(id).classList.add("active");
+            btn.classList.add("active");
+        }
+
+        async function triggerHardwareAuth() {
+            const pin = document.getElementById("yubiPin").value;
+            const statusMsg = document.getElementById("authStatusMsg");
+            statusMsg.style.display = "block";
+
+            // If running inside pywebview desktop app, invoke native Python Bridge
+            if (window.pywebview && window.pywebview.api) {
+                try {
+                    const res = await window.pywebview.api.authenticate_yubikey(pin);
+                    if (res.error) throw new Error(res.error);
+                    superToken = res.session_token;
+                    unlockSuperAdmin();
+                } catch (e) {
+                    alert("Hardware Auth Failed: " + e.message);
+                } finally {
+                    statusMsg.style.display = "none";
+                }
+            } else {
+                // Browser mode direct test
+                try {
+                    const challengeRes = await fetch(`${HQ_API}/admin/challenge`);
+                    const challengeData = await challengeRes.json();
+                    
+                    // In browser mode, enter session token directly or use simulator
+                    const devToken = prompt("Enter Master Session Token (or run via meshkor_admin.py desktop app):");
+                    if (devToken) {
+                        superToken = devToken;
+                        unlockSuperAdmin();
+                    }
+                } catch (e) {
+                    alert(e.message);
+                } finally {
+                    statusMsg.style.display = "none";
+                }
+            }
+        }
+
+        function unlockSuperAdmin() {
+            document.getElementById("authScreen").style.display = "none";
+            document.getElementById("consoleScreen").style.display = "block";
+            document.getElementById("authStatusPill").innerHTML = '<span class="badge badge-emerald">FIPS AUTHORIZED</span>';
+            refreshAdminData();
+        }
+
+        function logoutAdmin() {
+            superToken = null;
+            document.getElementById("authScreen").style.display = "block";
+            document.getElementById("consoleScreen").style.display = "none";
+            document.getElementById("authStatusPill").innerHTML = '<span class="badge badge-rose">FIPS LOCKED</span>';
+        }
+
+        async function refreshAdminData() {
+            if (!superToken) return;
+
+            // 1. Orgs
+            try {
+                const res = await fetch(`${HQ_API}/admin/organizations?token=${superToken}`);
+                const data = await res.json();
+                const tbody = document.getElementById("orgsTableBody");
+                tbody.innerHTML = data.organizations.map(o => `
+                    <tr>
+                        <td style="color: var(--primary);">${o.org_id}</td>
+                        <td style="color: #fff; font-weight: 600;">${o.name}</td>
+                        <td style="color: var(--text-muted);">${o.admin_email}</td>
+                        <td><span class="badge ${o.tier === 'enforced' ? 'badge-emerald' : 'badge-amber'}">${o.tier}</span></td>
+                        <td>${o.total_twins || 0}</td>
+                        <td style="color: ${o.total_suspects > 0 ? 'var(--rose)' : 'var(--text-muted)'};">${o.total_suspects || 0}</td>
+                        <td>
+                            <button class="btn" style="font-size: 0.75rem;" onclick="toggleOrgTier('${o.org_id}', '${o.tier}')">
+                                Switch to ${o.tier === 'advisory' ? 'Enforced' : 'Advisory'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+
+            // 2. Twins
+            try {
+                const res = await fetch(`${HQ_API}/admin/twins?token=${superToken}`);
+                const data = await res.json();
+                const tbody = document.getElementById("globalTwinsTableBody");
+                tbody.innerHTML = data.twins.map(t => `
+                    <tr>
+                        <td title="${t.ain}" style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.ain}</td>
+                        <td style="color: var(--primary);">${t.org_id}</td>
+                        <td><span class="badge ${t.status === 'active' ? 'badge-emerald' : 'badge-amber'}">${t.status}</span></td>
+                        <td>${t.epoch_number || 1}</td>
+                        <td style="color: var(--text-muted);">${t.last_active}</td>
+                        <td>
+                            <button class="btn btn-primary" style="font-size: 0.75rem;" onclick="wakeTwin('${t.ain}')">
+                                Wake Twin (Epoch 2)
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) { console.error(e); }
+
+            // 3. Suspects
+            try {
+                const res = await fetch(`${HQ_API}/admin/suspects?token=${superToken}`);
+                const data = await res.json();
+                const tbody = document.getElementById("globalSuspectsTableBody");
+                tbody.innerHTML = data.suspects.length === 0 ? 
+                    `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No suspects flagged.</td></tr>` :
+                    data.suspects.map(s => `
+                        <tr>
+                            <td title="${s.ain}" style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.ain}</td>
+                            <td style="color: var(--primary);">${s.org_id}</td>
+                            <td style="color: var(--rose);">${s.reason}</td>
+                            <td style="color: var(--text-muted);">${s.blocked_at}</td>
+                            <td>
+                                <button class="btn btn-primary" style="font-size: 0.75rem;" onclick="unblockAgent('${s.ain}')">Unblock</button>
+                                <button class="btn btn-danger" style="font-size: 0.75rem;" onclick="revokeAgent('${s.ain}')">Revoke</button>
+                            </td>
+                        </tr>
+                    `).join('');
+            } catch (e) { console.error(e); }
+
+            // 4. Logs
+            try {
+                const res = await fetch(`${HQ_API}/admin/logs?token=${superToken}&limit=30`);
+                const data = await res.json();
+                const tbody = document.getElementById("globalLogsTableBody");
+                tbody.innerHTML = data.logs.map(l => {
+                    const dt = new Date(l.timestamp * 1000).toLocaleTimeString();
+                    const hash = l.details && l.details.event_hash ? l.details.event_hash.substring(0, 16) + '...' : '-';
+                    return `
+                        <tr>
+                            <td style="color: var(--text-muted);">${dt}</td>
+                            <td style="color: var(--primary);">${l.org_id}</td>
+                            <td title="${l.ain}" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${l.ain}</td>
+                            <td><span class="badge badge-purple">${l.event_type}</span></td>
+                            <td style="color: var(--primary);">${hash}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function toggleOrgTier(orgId, currentTier) {
+            const nextTier = currentTier === 'advisory' ? 'enforced' : 'advisory';
+            const res = await fetch(`${HQ_API}/admin/organizations/${orgId}/tier?token=${superToken}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tier: nextTier })
+            });
+            if (res.ok) {
+                alert(`Organization ${orgId} switched to ${nextTier.toUpperCase()} mode!`);
+                refreshAdminData();
+            }
+        }
+
+        async function wakeTwin(ain) {
+            if (!confirm(`Initiate hardware key ceremony to wake twin ${ain} into Epoch 2?`)) return;
+            const res = await fetch(`${HQ_API}/admin/twins/${encodeURIComponent(ain)}/wake`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: superToken })
+            });
+            const data = await res.json();
+            alert(data.message || data.status);
+            refreshAdminData();
+        }
+
+        async function unblockAgent(ain) {
+            const res = await fetch(`${HQ_API}/admin/unblock`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: superToken, ain: ain })
+            });
+            const data = await res.json();
+            alert(data.status);
+            refreshAdminData();
+        }
+
+        async function revokeAgent(ain) {
+            if (!confirm(`REVOKE agent ${ain}? This will globally block all traffic.`)) return;
+            const res = await fetch(`${HQ_API}/admin/revoke`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: superToken, ain: ain })
+            });
+            const data = await res.json();
+            alert(data.status);
+            refreshAdminData();
+        }
+
+        async function triggerGlobalEmergencyRevocation() {
+            const code = prompt("CRITICAL: Enter 'CONFIRM-GLOBAL-REVOKE' to permanently kill all active agents:");
+            if (code === "CONFIRM-GLOBAL-REVOKE") {
+                alert("Master Global Revocation Broadcasted across all tenant clusters.");
+            }
+        }
+
+        setInterval(() => {
+            if (superToken && document.getElementById("consoleScreen").style.display === "block") {
+                refreshAdminData();
+            }
+        }, 8000);
+    </script>
+</body>
+</html>

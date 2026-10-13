@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshKor — Organization Security & Digital Twins Command</title>
+    <meta name="description" content="Autonomous agent fleet security, cryptographic twins vault, and real-time tamper-evident telemetry stream.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================================================
+           DESIGN TOKENS & SYSTEM VARIABLES (Linear System - Dual Dark / Light Mode)
+           ========================================================================== */
+        :root {
+            --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+
+            --radius-xs: 4px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-xxl: 24px;
+            --radius-pill: 9999px;
+
+            --max-width: 1320px;
+            --nav-height: 64px;
+
+            --transition-fast: 0.15s ease;
+            --transition-smooth: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* --------------------------------------------------------------------------
+           DARK THEME (Default - Anchored in #010102 with Surface Ladder & Coral/Lavender)
+           -------------------------------------------------------------------------- */
+        [data-theme="dark"] {
+            --bg: #010102;
+            --bg-subtle: #080a0f;
+            --panel: #0f1011;
+            --panel-hover: #141516;
+            --panel-active: #18191a;
+            --panel-elevated: #191a1b;
+
+            --line: #23252a;
+            --line-strong: #34343a;
+            --line-focus: #5e69d1;
+
+            --text: #f7f8f8;
+            --text-muted: #d0d6e0;
+            --text-subtle: #8a8f98;
+            --text-tertiary: #62666d;
+
+            --primary: #F55036;
+            --primary-hover: #FF6A52;
+            --primary-glow: rgba(245, 80, 54, 0.35);
+            --accent-lavender: #5e6ad2;
+
+            --success: #27a644;
+            --success-bg: rgba(39, 166, 68, 0.12);
+            --success-border: rgba(39, 166, 68, 0.3);
+
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.12);
+            --warning-border: rgba(245, 158, 11, 0.3);
+
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.12);
+            --danger-border: rgba(239, 68, 68, 0.3);
+
+            --info: #3b82f6;
+            --info-bg: rgba(59, 130, 246, 0.12);
+            --info-border: rgba(59, 130, 246, 0.3);
+
+            --badge-bg: #141516;
+            --badge-border: #23252a;
+            --badge-text: #d0d6e0;
+
+            --table-header-bg: #090a0c;
+            --table-row-hover: rgba(255, 255, 255, 0.02);
+
+            --grid-line: rgba(255, 255, 255, 0.03);
+            --ambient-radial-1: rgba(94, 106, 210, 0.10);
+            --ambient-radial-2: rgba(245, 80, 54, 0.08);
+
+            --modal-overlay: rgba(0, 0, 0, 0.78);
+            --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+            --shadow-lift: 0 16px 40px -8px rgba(0, 0, 0, 0.8);
+            --shadow-input-focus: 0 0 0 2px rgba(94, 106, 210, 0.4);
+        }
+
+        /* --------------------------------------------------------------------------
+           LIGHT / WHITE THEME (Clean Software Engineering Light Palette)
+           -------------------------------------------------------------------------- */
+        [data-theme="light"] {
+            --bg: #F9FAFB;
+            --bg-subtle: #F3F4F6;
+            --panel: #FFFFFF;
+            --panel-hover: #F9FAFB;
+            --panel-active: #F3F4F6;
+            --panel-elevated: #FFFFFF;
+
+            --line: #E5E7EB;
+            --line-strong: #D1D5DB;
+            --line-focus: #4F46E5;
+
+            --text: #111827;
+            --text-muted: #374151;
+            --text-subtle: #6B7280;
+            --text-tertiary: #9CA3AF;
+
+            --primary: #E03E26;
+            --primary-hover: #C5301B;
+            --primary-glow: rgba(224, 62, 38, 0.2);
+            --accent-lavender: #4F46E5;
+
+            --success: #15803D;
+            --success-bg: rgba(21, 128, 61, 0.08);
+            --success-border: rgba(21, 128, 61, 0.25);
+
+            --warning: #D97706;
+            --warning-bg: rgba(217, 119, 6, 0.08);
+            --warning-border: rgba(217, 119, 6, 0.25);
+
+            --danger: #DC2626;
+            --danger-bg: rgba(220, 38, 38, 0.08);
+            --danger-border: rgba(220, 38, 38, 0.25);
+
+            --info: #2563EB;
+            --info-bg: rgba(37, 99, 235, 0.08);
+            --info-border: rgba(37, 99, 235, 0.25);
+
+            --badge-bg: #F3F4F6;
+            --badge-border: #E5E7EB;
+            --badge-text: #374151;
+
+            --table-header-bg: #F9FAFB;
+            --table-row-hover: rgba(0, 0, 0, 0.015);
+
+            --grid-line: rgba(0, 0, 0, 0.035);
+            --ambient-radial-1: rgba(79, 70, 229, 0.05);
+            --ambient-radial-2: rgba(224, 62, 38, 0.04);
+
+            --modal-overlay: rgba(17, 24, 39, 0.45);
+            --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
+            --shadow-lift: 0 12px 28px -4px rgba(0, 0, 0, 0.08);
+            --shadow-input-focus: 0 0 0 2px rgba(79, 70, 229, 0.25);
+        }
+
+        /* ==========================================================================
+           GLOBAL BASE & RESET
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: background-color var(--transition-fast), color var(--transition-fast);
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            transition: color var(--transition-fast);
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        /* Ambient Field Grid Background matching landing page */
+        .ambient-field {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(1000px 600px at 80% -10%, var(--ambient-radial-1), transparent 60%),
+                radial-gradient(800px 600px at 15% 10%, var(--ambient-radial-2), transparent 62%),
+                linear-gradient(var(--bg), var(--bg));
+        }
+
+        .ambient-field::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.45;
+            background-image:
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: radial-gradient(1200px 800px at 50% 0%, #000 0%, transparent 85%);
+            -webkit-mask-image: radial-gradient(1200px 800px at 50% 0%, #000 0%, transparent 85%);
+        }
+
+        /* Container Wrap */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 24px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==========================================================================
+           TOP NAVIGATION HEADER (Linear Style)
+           ========================================================================== */
+        header.top-header {
+            position: sticky;
+            top: 0;
+            z-index: 60;
+            height: var(--nav-height);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(1, 1, 2, 0.78);
+            border-bottom: 1px solid var(--line);
+            transition: background-color var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        [data-theme="light"] header.top-header {
+            background: rgba(249, 250, 251, 0.85);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 100%;
+        }
+
+        .brand-cluster {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-eyebrow {
+            color: var(--primary);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .brand-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: var(--radius-pill);
+            background: var(--badge-bg);
+            border: 1px solid var(--badge-border);
+            color: var(--text-subtle);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-links-cluster {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-link {
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: color var(--transition-fast);
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+        }
+
+        .nav-actions-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Theme Toggle Button */
+        .btn-theme-toggle {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--line);
+            background: var(--panel);
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+        }
+
+        .btn-theme-toggle:hover {
+            color: var(--text);
+            border-color: var(--line-strong);
+            background: var(--panel-hover);
+        }
+
+        /* Buttons (Linear Spec: rounded.md 8px, compact, high-contrast) */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 13.5px;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-fast);
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, var(--primary-hover), var(--primary));
+            color: #FFFFFF;
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 2px 10px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+
+        .btn-secondary {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--line);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .btn-secondary:hover {
+            background: var(--panel-hover);
+            border-color: var(--line-strong);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12.5px;
+        }
+
+        /* Status Pills & Indicators */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+            padding: 3px 10px;
+            border-radius: var(--radius-pill);
+            font-weight: 500;
+        }
+
+        .status-pill-emerald {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success-border);
+        }
+
+        .status-pill-orange {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid var(--danger-border);
+        }
+
+        .status-pill-blue {
+            background: var(--info-bg);
+            color: var(--info);
+            border: 1px solid var(--info-border);
+        }
+
+        .status-pill-neutral {
+            background: var(--badge-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--line);
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            display: inline-block;
+            animation: pulseDot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0% { opacity: 0.4; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.15); }
+            100% { opacity: 0.4; transform: scale(0.9); }
+        }
+
+        /* ==========================================================================
+           MAIN CONTENT AREA
+           ========================================================================== */
+        main.main-viewport {
+            flex: 1;
+            padding: 32px 0 64px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==========================================================================
+           VIEW 1: LOGGED OUT ONBOARDING HERO VIEW
+           ========================================================================== */
+        .hero-onboarding-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-xl);
+            padding: 48px;
+            box-shadow: var(--shadow-panel);
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--primary);
+            padding: 4px 12px;
+            background: rgba(245, 80, 54, 0.08);
+            border: 1px solid rgba(245, 80, 54, 0.25);
+            border-radius: var(--radius-pill);
+            margin-bottom: 20px;
+        }
+
+        .hero-title {
+            font-size: clamp(32px, 4vw, 48px);
+            font-weight: 700;
+            line-height: 1.12;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+        }
+
+        .hero-title .gradient-text {
+            background: linear-gradient(135deg, var(--text) 30%, var(--primary-hover) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-lede {
+            font-size: 16.5px;
+            color: var(--text-muted);
+            max-width: 660px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .hero-action-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        /* 3-Column Feature Cards in Welcome View */
+        .features-tri-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            border-top: 1px solid var(--line);
+            padding-top: 32px;
+        }
+
+        .feature-item-card {
+            background: var(--panel-hover);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: border-color var(--transition-fast);
+        }
+
+        .feature-item-card:hover {
+            border-color: var(--line-strong);
+        }
+
+        .feature-item-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feature-item-desc {
+            font-size: 13px;
+            color: var(--text-subtle);
+            line-height: 1.5;
+        }
+
+        /* ==========================================================================
+           VIEW 2: LOGGED IN ENTERPRISE COMMAND VIEW
+           ========================================================================== */
+        .command-header-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-xl);
+            padding: 28px 32px;
+            box-shadow: var(--shadow-panel);
+            margin-bottom: 24px;
+        }
+
+        .command-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .org-headline-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .org-display-name {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .org-id-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--text-subtle);
+            background: var(--bg-subtle);
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--line);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            width: fit-content;
+        }
+
+        .org-id-chip:hover {
+            color: var(--text);
+            border-color: var(--line-strong);
+            background: var(--panel-hover);
+        }
+
+        .command-controls-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .live-status-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        /* 4-Up Metric Grid (Linear Surface Ladder Spec) */
+        .kpi-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            box-shadow: var(--shadow-panel);
+            transition: transform var(--transition-fast), border-color var(--transition-fast);
+            position: relative;
+        }
+
+        .kpi-card:hover {
+            border-color: var(--line-strong);
+            transform: translateY(-1px);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-subtle);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .kpi-footnote {
+            font-size: 12.5px;
+            color: var(--text-tertiary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ==========================================================================
+           TAB NAVIGATION (Linear Clean Tab Strip)
+           ========================================================================== */
+        .tab-strip-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .tab-buttons-list {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-nav-btn {
+            padding: 10px 16px;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-subtle);
+            border-bottom: 2px solid transparent;
+            transition: all var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: -1px;
+            cursor: pointer;
+        }
+
+        .tab-nav-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-nav-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tab-count-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: var(--radius-pill);
+            background: var(--badge-bg);
+            border: 1px solid var(--line);
+            color: var(--text-tertiary);
+        }
+
+        .tab-nav-btn.active .tab-count-badge {
+            background: rgba(245, 80, 54, 0.12);
+            color: var(--primary);
+            border-color: rgba(245, 80, 54, 0.3);
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ==========================================================================
+           DATA TABLE PANELS (Linear Craft & Dense Layout)
+           ========================================================================== */
+        .table-panel-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-panel);
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .table-panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--table-header-bg);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-panel-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .table-panel-subtitle {
+            font-size: 13px;
+            color: var(--text-subtle);
+            margin-top: 2px;
+        }
+
+        .table-scroll-container {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table.linear-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13.5px;
+        }
+
+        table.linear-table th {
+            padding: 12px 24px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-subtle);
+            background: var(--table-header-bg);
+            border-bottom: 1px solid var(--line);
+            white-space: nowrap;
+        }
+
+        table.linear-table td {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--line);
+            color: var(--text-muted);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        table.linear-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.linear-table tr:hover td {
+            background: var(--table-row-hover);
+            color: var(--text);
+        }
+
+        .copy-pill-btn {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-subtle);
+            border: 1px solid var(--line);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .copy-pill-btn:hover {
+            color: var(--text);
+            border-color: var(--line-strong);
+            background: var(--panel-hover);
+        }
+
+        /* Empty states */
+        .empty-row-box {
+            text-align: center;
+            padding: 56px 24px;
+            color: var(--text-subtle);
+        }
+
+        .empty-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            opacity: 0.7;
+        }
+
+        /* Code Blocks */
+        .code-box-wrapper {
+            background: var(--panel-elevated);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            position: relative;
+            margin: 12px 0 24px 0;
+            overflow-x: auto;
+        }
+
+        [data-theme="dark"] .code-box-wrapper {
+            background: #090a0c;
+        }
+
+        .code-box-wrapper pre {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-copy-floating-btn {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 11.5px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .code-copy-floating-btn:hover {
+            color: var(--text);
+            border-color: var(--line-strong);
+        }
+
+        /* Skeleton Loading shimmer */
+        @keyframes shimmerPulse {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton-block {
+            background: linear-gradient(90deg, var(--panel-hover) 25%, var(--panel-active) 50%, var(--panel-hover) 75%);
+            background-size: 200% 100%;
+            animation: shimmerPulse 1.8s infinite ease-in-out;
+            border-radius: var(--radius-sm);
+            display: inline-block;
+        }
+
+        /* ==========================================================================
+           MODALS (Linear Clean Dialog Spec)
+           ========================================================================== */
+        .modal-scrim-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--modal-overlay);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .modal-dialog-card {
+            background: var(--panel);
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lift);
+            width: 100%;
+            max-width: 480px;
+            padding: 32px;
+            position: relative;
+        }
+
+        .modal-close-cross {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: var(--text-subtle);
+            font-size: 20px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 4px;
+            transition: color var(--transition-fast);
+        }
+
+        .modal-close-cross:hover {
+            color: var(--text);
+        }
+
+        .form-group-field {
+            margin-bottom: 18px;
+        }
+
+        .form-label-tag {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-control-input {
+            width: 100%;
+            padding: 9px 14px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: all var(--transition-fast);
+        }
+
+        .form-control-input:focus {
+            border-color: var(--line-focus);
+            box-shadow: var(--shadow-input-focus);
+            background: var(--panel);
+        }
+
+        .secret-key-vault-box {
+            background: #000000;
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin: 16px 0;
+            color: #FFFFFF;
+        }
+
+        /* Toast notifications */
+        #toastFloatNotice {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--panel-elevated);
+            color: var(--text);
+            border: 1px solid var(--line-strong);
+            padding: 10px 18px;
+            border-radius: var(--radius-md);
+            font-size: 13.5px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lift);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        /* Footer */
+        footer.command-footer {
+            margin-top: auto;
+            border-top: 1px solid var(--line);
+            padding: 32px 0;
+            font-size: 13px;
+            color: var(--text-tertiary);
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer-inner-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .kpi-metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .features-tri-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links-cluster {
+                display: none;
+            }
+            .hero-onboarding-panel {
+                padding: 32px 24px;
+            }
+            .command-header-panel {
+                padding: 24px 20px;
+            }
+            .kpi-metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .tab-buttons-list {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 4px;
+            }
+            table.linear-table th, table.linear-table td {
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Grid & Glow Field -->
+    <div class="ambient-field" aria-hidden="true"></div>
+
+    <!-- Top Sticky Header -->
+    <header class="top-header">
+        <div class="container nav-inner">
+            <div class="brand-cluster">
+                <a href="../landing_page/index.html" class="brand-link">
+                    <span class="brand-eyebrow">//</span> MeshKor
+                </a>
+                <span class="brand-badge">
+                    <span class="pulse-dot" style="color: var(--success);"></span> Cloud HQ Live
+                </span>
+            </div>
+
+            <nav class="nav-links-cluster">
+                <a href="../landing_page/index.html" class="nav-link">Home</a>
+                <a href="../landing_page/docs.html" class="nav-link">Documentation</a>
+                <a href="../landing_page/architecture.html" class="nav-link">Architecture</a>
+                <a href="../landing_page/recovery.html" class="nav-link">Recovery</a>
+            </nav>
+
+            <div class="nav-actions-cluster">
+                <!-- Theme Toggle (Dark / Light) -->
+                <button class="btn-theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Theme (Dark / Light)">
+                    <span id="themeToggleIcon">&#9728;</span>
+                </button>
+
+                <!-- Dynamic Auth Actions injected by JS -->
+                <div id="authActionsContainer" style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-sm" onclick="openModal('loginModal')">Sign In</button>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('signupModal')">Provision Org</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-viewport">
+        <div class="container">
+
+            <!-- ========================================== -->
+            <!-- VIEW 1: Logged Out Welcome View            -->
+            <!-- ========================================== -->
+            <section id="viewLoggedOut" style="display: none;">
+                <div class="hero-onboarding-panel">
+                    <div class="hero-eyebrow">
+                        <span>&bull;</span> CRYPTOGRAPHIC FIREWALL FOR AUTONOMOUS FLEETS
+                    </div>
+                    
+                    <h1 class="hero-title">
+                        Enterprise Agent Security & <br>
+                        <span class="gradient-text">Digital Twin Command.</span>
+                    </h1>
+
+                    <p class="hero-lede">
+                        Protect autonomous agent systems with tamper-evident event chains, behavioral drift quarantine, and K-snapshot twin vaults. Built with a 100% pure Python embedded sidecar requiring zero client database rewrites.
+                    </p>
+
+                    <div class="hero-action-row">
+                        <button class="btn btn-primary" onclick="openModal('signupModal')" style="padding: 12px 24px; font-size: 14.5px;">
+                            Provision New Organization &rarr;
+                        </button>
+                        <button class="btn btn-secondary" onclick="openModal('loginModal')" style="padding: 12px 20px; font-size: 14.5px;">
+                            Sign In to Fleet Portal
+                        </button>
+                        <a href="../landing_page/docs.html" class="btn btn-secondary" style="color: var(--text-muted);">
+                            Read Developer Docs &rarr;
+                        </a>
+                    </div>
+
+                    <div class="features-tri-grid">
+                        <div class="feature-item-card">
+                            <div class="feature-item-title">
+                                <span style="color: var(--primary);">&bull;</span> Pure Python Sidecar
+                            </div>
+                            <div class="feature-item-desc">
+                                Runs embedded inside your Python processes via <code>pip install meshkor</code>. No external Docker daemon or Kubernetes sidecars needed.
+                            </div>
+                        </div>
+
+                        <div class="feature-item-card">
+                            <div class="feature-item-title">
+                                <span style="color: var(--success);">&bull;</span> Zero-Code Mode Switch
+                            </div>
+                            <div class="feature-item-desc">
+                                Toggle dynamically between Advisory (audit-only) and Enforced (blocking cryptographic gate) directly from Cloud HQ without modifying client code.
+                            </div>
+                        </div>
+
+                        <div class="feature-item-card">
+                            <div class="feature-item-title">
+                                <span style="color: var(--accent-lavender);">&bull;</span> Epoch 2 Resurrections
+                            </div>
+                            <div class="feature-item-desc">
+                                K-snapshot states encrypted with AES-256-GCM and shattered across 5 Shamir shares. Recover full agent context upon catastrophe.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- VIEW 2: Logged In Fleet Command View       -->
+            <!-- ========================================== -->
+            <section id="viewLoggedIn" style="display: none;">
+
+                <!-- Organization Command Header -->
+                <div class="command-header-panel">
+                    <div class="command-meta-row">
+                        <div class="org-headline-group">
+                            <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-subtle);">
+                                Organization Command Center
+                            </div>
+                            <h1 class="org-display-name" id="orgNameHeading">
+                                <span class="skeleton-block" style="width: 240px; height: 32px;"></span>
+                            </h1>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap;">
+                                <div class="org-id-chip" onclick="copyText(activeOrgId, 'Organization ID copied!')" title="Click to copy organization ID">
+                                    <span>ORG_ID:</span>
+                                    <strong id="orgIdChipDisplay" style="color: var(--text);">org_...</strong>
+                                    <span style="opacity: 0.6;">&boxbox;</span>
+                                </div>
+                                <div class="status-pill status-pill-emerald" id="tierModePill">
+                                    <span class="pulse-dot"></span>
+                                    <span id="tierModeText">ADVISORY MODE</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="command-controls-group">
+                            <button class="btn btn-secondary btn-sm" onclick="refreshDashboardData(true)">
+                                &#x21bb; Sync HQ Telemetry
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="switchTab('tabQuickstart', document.getElementById('tabBtnQuickstart'))">
+                                SDK Config & Keys &rarr;
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="live-status-banner">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="pulse-dot" style="color: var(--success);"></span>
+                            <span>Connected to Cloud HQ (PostgreSQL Anchored): <code>http://44.193.27.158:8080</code></span>
+                        </div>
+                        <div style="color: var(--text-tertiary); font-size: 12px;">
+                            Hashing payload events locally with SHA-256 before egress
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 KPI Metrics Grid -->
+                <div class="kpi-metrics-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">VAULTED DIGITAL TWINS</div>
+                        <div class="kpi-value" id="statTwins">
+                            <span class="skeleton-block" style="width: 60px; height: 32px;"></span>
+                        </div>
+                        <div class="kpi-footnote">
+                            <span style="color: var(--accent-lavender);">&bull;</span> Sovereign unforgeable AINs
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-label">ACTIVE RUNNING AGENTS</div>
+                        <div class="kpi-value" id="statActive" style="color: var(--success);">
+                            <span class="skeleton-block" style="width: 60px; height: 32px;"></span>
+                        </div>
+                        <div class="kpi-footnote">
+                            <span style="color: var(--success);">&bull;</span> Fleet heartbeat nominal
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-label">QUARANTINED SUSPECTS</div>
+                        <div class="kpi-value" id="statSuspects" style="color: var(--danger);">
+                            <span class="skeleton-block" style="width: 60px; height: 32px;"></span>
+                        </div>
+                        <div class="kpi-footnote">
+                            <span style="color: var(--danger);">&bull;</span> Behavioral drift anomalies
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-label">TELEMETRY EVENTS (24H)</div>
+                        <div class="kpi-value" id="statEvents">
+                            <span class="skeleton-block" style="width: 60px; height: 32px;"></span>
+                        </div>
+                        <div class="kpi-footnote">
+                            <span style="color: var(--text-muted);">&bull;</span> Tamper-evident log audit
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Strip Navigation -->
+                <div class="tab-strip-wrapper">
+                    <div class="tab-buttons-list">
+                        <button class="tab-nav-btn active" id="tabBtnTwins" onclick="switchTab('tabTwins', this)">
+                            Twins Vault <span class="tab-count-badge" id="badgeTwinsCount">0</span>
+                        </button>
+                        <button class="tab-nav-btn" id="tabBtnSuspects" onclick="switchTab('tabSuspects', this)">
+                            Quarantined Suspects <span class="tab-count-badge" id="badgeSuspectsCount">0</span>
+                        </button>
+                        <button class="tab-nav-btn" id="tabBtnLogs" onclick="switchTab('tabLogs', this)">
+                            Live Telemetry Stream <span class="tab-count-badge" id="badgeLogsCount">0</span>
+                        </button>
+                        <button class="tab-nav-btn" id="tabBtnQuickstart" onclick="switchTab('tabQuickstart', this)">
+                            Integration Quickstart
+                        </button>
+                    </div>
+
+                    <div style="font-size: 12.5px; color: var(--text-subtle); display: flex; align-items: center; gap: 8px;">
+                        <span class="pulse-dot" style="color: var(--success);"></span>
+                        <span>Auto-refreshing every 6s</span>
+                    </div>
+                </div>
+
+                <!-- ============================== -->
+                <!-- TAB 1: Cryptographic Twins     -->
+                <!-- ============================== -->
+                <div id="tabTwins" class="tab-pane active">
+                    <div class="table-panel-card">
+                        <div class="table-panel-header">
+                            <div>
+                                <div class="table-panel-title">Cryptographic Digital Twins</div>
+                                <div class="table-panel-subtitle">Every enrolled agent receives an unforgeable sovereign AIN linked to central pedigree records.</div>
+                            </div>
+                        </div>
+
+                        <div class="table-scroll-container">
+                            <table class="linear-table">
+                                <thead>
+                                    <tr>
+                                        <th>Agent Identification Number (AIN)</th>
+                                        <th>Status</th>
+                                        <th>Epoch</th>
+                                        <th>Last Active Check-in</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="twinsTableBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-row-box">
+                                            <span class="skeleton-block" style="width: 240px; height: 16px;"></span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================== -->
+                <!-- TAB 2: Quarantined Suspects    -->
+                <!-- ============================== -->
+                <div id="tabSuspects" class="tab-pane">
+                    <div class="table-panel-card">
+                        <div class="table-panel-header">
+                            <div>
+                                <div class="table-panel-title" style="color: var(--danger);">Quarantined Drifting Agents</div>
+                                <div class="table-panel-subtitle">Agents flagged for manifest violations, unapproved tool usage, or behavioral drift.</div>
+                            </div>
+                        </div>
+
+                        <div class="table-scroll-container">
+                            <table class="linear-table">
+                                <thead>
+                                    <tr>
+                                        <th>Agent Identification Number (AIN)</th>
+                                        <th>Forensic Breach Reason</th>
+                                        <th>Quarantined At</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suspectsTableBody">
+                                    <tr>
+                                        <td colspan="4" class="empty-row-box">
+                                            <div class="empty-icon" style="color: var(--success);">&#x2714;</div>
+                                            <strong style="color: var(--text);">Fleet is 100% Healthy</strong>
+                                            <p style="font-size: 13px; margin-top: 4px;">Zero quarantined or drifting agents in your organization.</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================== -->
+                <!-- TAB 3: Live Telemetry Stream   -->
+                <!-- ============================== -->
+                <div id="tabLogs" class="tab-pane">
+                    <div class="table-panel-card">
+                        <div class="table-panel-header">
+                            <div>
+                                <div class="table-panel-title">Tamper-Evident Telemetry Stream</div>
+                                <div class="table-panel-subtitle">Real-time action stream anchored in PostgreSQL event_logs with local client SHA-256 hashes.</div>
+                            </div>
+                        </div>
+
+                        <div class="table-scroll-container">
+                            <table class="linear-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Agent (AIN)</th>
+                                        <th>Action Type</th>
+                                        <th>Cryptographic SHA-256 Digest</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTableBody">
+                                    <tr>
+                                        <td colspan="4" class="empty-row-box">
+                                            <span class="skeleton-block" style="width: 240px; height: 16px;"></span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================== -->
+                <!-- TAB 4: Integration Quickstart  -->
+                <!-- ============================== -->
+                <div id="tabQuickstart" class="tab-pane">
+                    <div class="table-panel-card" style="padding: 32px;">
+                        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); margin-bottom: 6px;">
+                            Developer Integration
+                        </div>
+                        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Zero-Infrastructure Onboarding</h2>
+                        <p style="color: var(--text-muted); font-size: 14.5px; margin-bottom: 24px; max-width: 720px;">
+                            Install the pure-Python sidecar package. It runs as an embedded background thread within your agent worker process. Zero Docker overhead.
+                        </p>
+
+                        <h3 style="font-size: 15px; font-weight: 600; margin-top: 20px;">1. Install SDK</h3>
+                        <div class="code-box-wrapper">
+                            <button class="code-copy-floating-btn" onclick="copySnippetText('codePipInstall', this)">Copy</button>
+                            <pre id="codePipInstall">pip install meshkor</pre>
+                        </div>
+
+                        <h3 style="font-size: 15px; font-weight: 600; margin-top: 20px;">2. Environment Variables (.env)</h3>
+                        <p style="font-size: 13px; color: var(--text-subtle); margin-bottom: 6px;">Configured specifically for your organization:</p>
+                        <div class="code-box-wrapper">
+                            <button class="code-copy-floating-btn" onclick="copySnippetText('codeEnvConfig', this)">Copy</button>
+                            <pre id="codeEnvConfig">MESHKOR_ORG_ID=org_kormic
+MESHKOR_API_KEY=mk_live_your_secret_key
+MESHKOR_HQ_URL=http://44.193.27.158:8080</pre>
+                        </div>
+
+                        <h3 style="font-size: 15px; font-weight: 600; margin-top: 20px;">3. Python Integration Snippet</h3>
+                        <div class="code-box-wrapper">
+                            <button class="code-copy-floating-btn" onclick="copySnippetText('codePythonSnippet', this)">Copy</button>
+                            <pre id="codePythonSnippet">from meshkor.integrations.kormic import KormicMeshKorIntegration
+
+# 1. Initialize integration (loads MESHKOR_ORG_ID and MESHKOR_API_KEY from environment)
+meshkor = KormicMeshKorIntegration()
+
+# 2. Enroll Agent (receives sovereign unforgeable AIN and syncs security tier)
+ain = meshkor.enroll_agent(
+    agent_class="STU",
+    instance_ref="student_agent_01",
+    manifest={
+        "allowed_tools": ["search", "calc", "db_reader"],
+        "max_context_window": 8192
+    },
+    constitution_hash="sha256_hash_of_constitution_prompt"
+)
+print(f"Agent enrolled successfully: {ain}")
+
+# 3. Record Actions (automatically hashes payload locally with SHA-256)
+# If organization is switched to ENFORCED tier, violations raise MeshKorSecurityBlockException
+meshkor.record_event(
+    ain=ain,
+    action_type="agent_sent_message",
+    payload={"query": "Student academic evaluation request"}
+)</pre>
+                        </div>
+
+                        <div style="background: var(--bg-subtle); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px;">
+                            <div>
+                                <strong style="font-size: 14px; color: var(--text);">Looking for SOC2 audit export or Shamir Secret parameters?</strong>
+                                <p style="font-size: 12.5px; color: var(--text-subtle);">Explore cryptographic twin snapshot intervals and hardware ceremony guides.</p>
+                            </div>
+                            <a href="../landing_page/docs.html" class="btn btn-secondary btn-sm">Read Full Documentation &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: Sign Up / Provision Organization   -->
+    <!-- ========================================== -->
+    <div id="signupModal" class="modal-scrim-overlay">
+        <div class="modal-dialog-card">
+            <span class="modal-close-cross" onclick="closeModal('signupModal')">&times;</span>
+            
+            <div id="signupFormSection">
+                <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); margin-bottom: 6px;">
+                    Self-Serve Onboarding
+                </div>
+                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Provision Organization</h2>
+                <p style="font-size: 13.5px; color: var(--text-subtle); margin-bottom: 20px;">
+                    Deploy an isolated multi-tenant fleet with unforgeable cryptographic credentials.
+                </p>
+
+                <div class="form-group-field">
+                    <label class="form-label-tag">Organization / Company Name</label>
+                    <input type="text" id="signupName" class="form-control-input" placeholder="e.g. Wayne Enterprises" required>
+                </div>
+                <div class="form-group-field">
+                    <label class="form-label-tag">Security Admin Email</label>
+                    <input type="email" id="signupEmail" class="form-control-input" placeholder="admin@enterprise.com" required>
+                </div>
+                <div class="form-group-field">
+                    <label class="form-label-tag">Password</label>
+                    <input type="password" id="signupPassword" class="form-control-input" placeholder="••••••••••••" required>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="submitSignup()">
+                    Generate Credentials &rarr;
+                </button>
+            </div>
+
+            <!-- Key Reveal State (shown once on success) -->
+            <div id="signupSuccessSection" style="display: none;">
+                <div class="status-pill status-pill-emerald" style="margin-bottom: 12px;">PROVISIONED SUCCESSFULLY</div>
+                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Your Secret API Key</h2>
+                <p style="font-size: 13px; color: var(--text-subtle);">
+                    Store this key safely in your secret manager. For security reasons, Cloud HQ will never display it again.
+                </p>
+
+                <div class="secret-key-vault-box">
+                    <div style="font-size: 11px; color: var(--warning); font-weight: 600; margin-bottom: 4px;">MESHKOR API KEY:</div>
+                    <div class="mono" id="revealedApiKey" style="font-size: 13.5px; word-break: break-all; font-weight: 600;">mk_live_...</div>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="copyApiKeyAndEnter()">
+                    Copy Key & Access Command Center &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: Sign In to Fleet Command           -->
+    <!-- ========================================== -->
+    <div id="loginModal" class="modal-scrim-overlay">
+        <div class="modal-dialog-card">
+            <span class="modal-close-cross" onclick="closeModal('loginModal')">&times;</span>
+            
+            <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-lavender); margin-bottom: 6px;">
+                Authentication
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Sign In to Fleet Command</h2>
+            <p style="font-size: 13.5px; color: var(--text-subtle); margin-bottom: 20px;">
+                Enter your administrative credentials to manage digital twin telemetry.
+            </p>
+
+            <div class="form-group-field">
+                <label class="form-label-tag">Admin Email</label>
+                <input type="email" id="loginEmail" class="form-control-input" placeholder="admin@kormic.edu" value="admin@kormic.edu">
+            </div>
+            <div class="form-group-field">
+                <label class="form-label-tag">Password</label>
+                <input type="password" id="loginPassword" class="form-control-input" placeholder="••••••••••••" value="Meshkor-2026">
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="submitLogin()">
+                Access Command Center &rarr;
+            </button>
+
+            <div style="margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-tertiary);">
+                <span>Need a new organization?</span>
+                <a href="javascript:void(0)" onclick="closeModal('loginModal'); openModal('signupModal');" style="color: var(--text); font-weight: 600; margin-left: 6px;">
+                    Provision Organization
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Element -->
+    <div id="toastFloatNotice">
+        <span style="color: var(--success); font-size: 16px;">&check;</span>
+        <span id="toastFloatMessage">Action completed</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="command-footer">
+        <div class="container footer-inner-row">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span class="brand-link" style="font-size: 14px;">
+                    <span class="brand-eyebrow">//</span> MeshKor
+                </span>
+                <span>&bull;</span>
+                <span>Enterprise Autonomous Agent Security Platform</span>
+            </div>
+
+            <div style="display: flex; gap: 20px;">
+                <a href="../landing_page/index.html">Landing</a>
+                <a href="../landing_page/docs.html">Docs</a>
+                <a href="../landing_page/architecture.html">Architecture</a>
+                <a href="../landing_page/recovery.html">Recovery</a>
+            </div>
+
+            <div>
+                &copy; 2026 MeshKor Inc. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==========================================================================
+       JAVASCRIPT APPLICATION ENGINE
+       ========================================================================== -->
+    <script>
+        // Cloud HQ production endpoint
+        const HQ_API = "http://44.193.27.158:8080";
+
+        // Local state
+        let sessionToken = localStorage.getItem("meshkor_session_token");
+        let activeOrgId = localStorage.getItem("meshkor_org_id");
+        let activeOrgName = localStorage.getItem("meshkor_org_name") || "Your Organization";
+        let activeTier = localStorage.getItem("meshkor_tier") || "advisory";
+        let autoPollTimer = null;
+
+        // Theme management (Dark / Light)
+        function initTheme() {
+            const savedTheme = localStorage.getItem("meshkor_theme") || "dark";
+            document.documentElement.setAttribute("data-theme", savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute("data-theme") || "dark";
+            const next = current === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", next);
+            localStorage.setItem("meshkor_theme", next);
+            updateThemeIcon(next);
+            showToast(`Switched to ${next} theme`);
+        }
+
+        function updateThemeIcon(theme) {
+            const iconEl = document.getElementById("themeToggleIcon");
+            if (iconEl) {
+                iconEl.innerHTML = theme === "dark" ? "&#9728;" : "&#9790;"; // Sun or Moon
+            }
+        }
+
+        // Window load initializer
+        window.onload = () => {
+            initTheme();
+
+            // Hash detection (#signup, #login)
+            const hash = window.location.hash;
+            if (hash === "#signup") {
+                openModal("signupModal");
+            } else if (hash === "#login") {
+                openModal("loginModal");
+            }
+
+            if (sessionToken && activeOrgId) {
+                showDashboard();
+            } else {
+                showLanding();
+            }
+        };
+
+        // Modal Helpers
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = "flex";
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = "none";
+        }
+
+        // Toast Feedback
+        function showToast(msg) {
+            const toast = document.getElementById("toastFloatNotice");
+            const msgEl = document.getElementById("toastFloatMessage");
+            if (!toast || !msgEl) return;
+            msgEl.innerText = msg;
+            toast.style.display = "inline-flex";
+            setTimeout(() => { toast.style.display = "none"; }, 3000);
+        }
+
+        function copyText(text, successMsg = "Copied to clipboard!") {
+            if (!text) return;
+            navigator.clipboard.writeText(text);
+            showToast(successMsg);
+        }
+
+        function copySnippetText(elemId, btn) {
+            const text = document.getElementById(elemId).innerText;
+            navigator.clipboard.writeText(text);
+            const orig = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => { btn.innerText = orig; }, 2000);
+            showToast("Snippet copied!");
+        }
+
+        // View Toggles
+        function showLanding() {
+            document.getElementById("viewLoggedOut").style.display = "block";
+            document.getElementById("viewLoggedIn").style.display = "none";
+            document.getElementById("authActionsContainer").innerHTML = `
+                <button class="btn btn-secondary btn-sm" onclick="openModal('loginModal')">Sign In</button>
+                <button class="btn btn-primary btn-sm" onclick="openModal('signupModal')">Provision Org</button>
+            `;
+            if (autoPollTimer) clearInterval(autoPollTimer);
+        }
+
+        function showDashboard() {
+            document.getElementById("viewLoggedOut").style.display = "none";
+            document.getElementById("viewLoggedIn").style.display = "block";
+            document.getElementById("authActionsContainer").innerHTML = `
+                <span class="mono" style="font-size: 12.5px; color: var(--text-subtle); display: inline-flex; align-items: center; padding-right: 6px;">${activeOrgId}</span>
+                <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+            `;
+
+            // Instant hydrate from local cache
+            document.getElementById("orgNameHeading").innerText = activeOrgName;
+            document.getElementById("orgIdChipDisplay").innerText = activeOrgId;
+            updateTierModeBadge(activeTier);
+
+            // Fetch live telemetry from Cloud HQ
+            refreshDashboardData();
+
+            // Setup polling interval
+            if (autoPollTimer) clearInterval(autoPollTimer);
+            autoPollTimer = setInterval(() => {
+                if (sessionToken && document.getElementById("viewLoggedIn").style.display === "block") {
+                    refreshDashboardData(false);
+                }
+            }, 6000);
+        }
+
+        function updateTierModeBadge(tier) {
+            const isEnforced = (tier || "").toLowerCase() === "enforced";
+            const pill = document.getElementById("tierModePill");
+            const text = document.getElementById("tierModeText");
+            if (isEnforced) {
+                pill.className = "status-pill status-pill-emerald";
+                text.innerText = "ENFORCED MODE (Zero-Trust Cryptographic Gates)";
+            } else {
+                pill.className = "status-pill status-pill-blue";
+                text.innerText = "ADVISORY MODE (Telemetry & Audit Only)";
+            }
+        }
+
+        // Tab Switching
+        function switchTab(tabId, btn) {
+            document.querySelectorAll(".tab-pane").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab-nav-btn").forEach(el => el.classList.remove("active"));
+            const target = document.getElementById(tabId);
+            if (target) target.classList.add("active");
+            if (btn) btn.classList.add("active");
+        }
+
+        // ==========================================
+        // AUTHENTICATION ENGINE: SIGN UP & PROVISION
+        // ==========================================
+        async function submitSignup() {
+            const name = document.getElementById("signupName").value.trim();
+            const email = document.getElementById("signupEmail").value.trim();
+            const password = document.getElementById("signupPassword").value;
+
+            if (!name || !email || !password) {
+                alert("Please fill in Organization Name, Email, and Password.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${HQ_API}/api/v1/auth/signup`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Provisioning failed.");
+
+                // Show API key reveal box
+                document.getElementById("signupFormSection").style.display = "none";
+                document.getElementById("signupSuccessSection").style.display = "block";
+                document.getElementById("revealedApiKey").innerText = data.api_key;
+
+                activeOrgId = data.org_id;
+                activeOrgName = name;
+                localStorage.setItem("meshkor_org_id", data.org_id);
+                localStorage.setItem("meshkor_org_name", name);
+                localStorage.setItem("meshkor_temp_key", data.api_key);
+
+                showToast("Organization provisioned successfully!");
+            } catch (err) {
+                alert("Provisioning Error: " + err.message);
+            }
+        }
+
+        function copyApiKeyAndEnter() {
+            const key = document.getElementById("revealedApiKey").innerText;
+            navigator.clipboard.writeText(key);
+            showToast("API Key copied safely!");
+            closeModal('signupModal');
+
+            // Auto-sign in with the entered credentials
+            submitLoginWithCreds(
+                document.getElementById("signupEmail").value,
+                document.getElementById("signupPassword").value
+            );
+        }
+
+        // ==========================================
+        // AUTHENTICATION ENGINE: SIGN IN
+        // ==========================================
+        async function submitLogin() {
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            if (!email || !password) {
+                alert("Please enter both email and password.");
+                return;
+            }
+            await submitLoginWithCreds(email, password);
+        }
+
+        async function submitLoginWithCreds(email, password) {
+            try {
+                const res = await fetch(`${HQ_API}/api/v1/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Invalid administrative credentials.");
+
+                sessionToken = data.session_token;
+                activeOrgId = data.org_id;
+                activeOrgName = data.name;
+                activeTier = data.tier || "advisory";
+
+                localStorage.setItem("meshkor_session_token", sessionToken);
+                localStorage.setItem("meshkor_org_id", activeOrgId);
+                localStorage.setItem("meshkor_org_name", activeOrgName);
+                localStorage.setItem("meshkor_tier", activeTier);
+
+                closeModal('loginModal');
+                showDashboard();
+                showToast(`Welcome back, ${data.name}!`);
+            } catch (err) {
+                alert("Authentication Failed: " + err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            sessionToken = null;
+            activeOrgId = null;
+            showLanding();
+            showToast("Signed out safely.");
+        }
+
+        // ==========================================
+        // DATA REFRESH & TELEMETRY INGESTION
+        // ==========================================
+        async function refreshDashboardData(showFeedback = false) {
+            if (!sessionToken) return;
+
+            try {
+                // 1. Fetch Overview & Metrics
+                const res = await fetch(`${HQ_API}/api/v1/org/overview?token=${sessionToken}`);
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) {
+                        logout();
+                        return;
+                    }
+                    throw new Error("Cloud HQ unreachable");
+                }
+                const data = await res.json();
+
+                // Update Organization Details
+                if (data.organization) {
+                    activeOrgName = data.organization.name;
+                    activeOrgId = data.organization.org_id;
+                    activeTier = data.organization.tier;
+                    document.getElementById("orgNameHeading").innerText = activeOrgName;
+                    document.getElementById("orgIdChipDisplay").innerText = activeOrgId;
+                    updateTierModeBadge(activeTier);
+                }
+
+                // Update Metrics
+                if (data.stats) {
+                    document.getElementById("statTwins").innerText = data.stats.total_twins ?? 0;
+                    document.getElementById("statActive").innerText = data.stats.active_agents ?? 0;
+                    document.getElementById("statSuspects").innerText = data.stats.suspected_agents ?? 0;
+                    document.getElementById("statEvents").innerText = data.stats.total_events ?? 0;
+                }
+
+                // Update Quickstart Code
+                document.getElementById("codeEnvConfig").innerText = 
+`MESHKOR_ORG_ID=${activeOrgId}
+MESHKOR_API_KEY=<your-secret-api-key>
+MESHKOR_HQ_URL=http://44.193.27.158:8080`;
+
+                // Load Sub-Tables
+                loadTwins();
+                loadSuspects();
+                loadTelemetryLogs();
+
+                if (showFeedback) showToast("Telemetry synchronized with Cloud HQ");
+            } catch (err) {
+                console.warn("Cloud HQ synchronization warning:", err);
+            }
+        }
+
+        async function loadTwins() {
+            try {
+                const res = await fetch(`${HQ_API}/api/v1/org/twins?token=${sessionToken}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById("twinsTableBody");
+                const badge = document.getElementById("badgeTwinsCount");
+
+                const twins = data.twins || [];
+                badge.innerText = twins.length;
+
+                if (twins.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty-row-box">
+                                <div class="empty-icon">&#9874;</div>
+                                <strong style="color: var(--text);">No Digital Twins Registered</strong>
+                                <p style="font-size: 13px; margin-top: 4px;">Enroll your first agent using the Python SDK to generate a sovereign AIN.</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = twins.map(t => {
+                    const shortAin = t.ain ? (t.ain.length > 34 ? t.ain.substring(0, 30) + '...' : t.ain) : 'AIN-UNKNOWN';
+                    const statusClass = t.status === 'active' ? 'status-pill-emerald' : (t.status === 'suspected' ? 'status-pill-orange' : 'status-pill-blue');
+                    return `
+                        <tr>
+                            <td>
+                                <button class="copy-pill-btn" onclick="copyText('${t.ain}', 'AIN copied!')" title="${t.ain}">
+                                    ${shortAin} &boxbox;
+                                </button>
+                            </td>
+                            <td>
+                                <span class="status-pill ${statusClass}">
+                                    <span class="pulse-dot"></span> ${t.status || 'active'}
+                                </span>
+                            </td>
+                            <td><strong class="mono" style="color: var(--text);">Epoch ${t.epoch_number || 1}</strong></td>
+                            <td style="color: var(--text-subtle);">${t.last_active || 'Recent'}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm" onclick="copyText('${t.ain}', 'AIN copied!')">
+                                    Copy AIN
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Failed to load twins table", e);
+            }
+        }
+
+        async function loadSuspects() {
+            try {
+                const res = await fetch(`${HQ_API}/api/v1/org/suspects?token=${sessionToken}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById("suspectsTableBody");
+                const badge = document.getElementById("badgeSuspectsCount");
+
+                const suspects = data.suspects || [];
+                badge.innerText = suspects.length;
+
+                if (suspects.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="empty-row-box">
+                                <div class="empty-icon" style="color: var(--success);">&#x2714;</div>
+                                <strong style="color: var(--text);">Fleet is 100% Healthy</strong>
+                                <p style="font-size: 13px; margin-top: 4px;">Zero quarantined or drifting agents in your organization.</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = suspects.map(s => {
+                    const shortAin = s.ain ? (s.ain.length > 34 ? s.ain.substring(0, 30) + '...' : s.ain) : 'AIN-UNKNOWN';
+                    return `
+                        <tr>
+                            <td>
+                                <button class="copy-pill-btn" onclick="copyText('${s.ain}', 'AIN copied!')" title="${s.ain}">
+                                    ${shortAin} &boxbox;
+                                </button>
+                            </td>
+                            <td style="color: var(--danger); font-weight: 500;">
+                                &bull; ${s.reason || 'Behavioral drift anomaly'}
+                            </td>
+                            <td style="color: var(--text-subtle);">${s.blocked_at || 'Recently'}</td>
+                            <td>
+                                <span class="status-pill status-pill-orange">Quarantined</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Failed to load suspects table", e);
+            }
+        }
+
+        async function loadTelemetryLogs() {
+            try {
+                const res = await fetch(`${HQ_API}/api/v1/org/logs?token=${sessionToken}&limit=35`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById("logsTableBody");
+                const badge = document.getElementById("badgeLogsCount");
+
+                const logs = data.logs || [];
+                badge.innerText = logs.length;
+
+                if (logs.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="empty-row-box">
+                                <div class="empty-icon">&#8987;</div>
+                                <strong style="color: var(--text);">No Telemetry Events Recorded Yet</strong>
+                                <p style="font-size: 13px; margin-top: 4px;">Record actions via <code>meshkor.record_event(...)</code> to populate the stream.</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = logs.map(l => {
+                    const dt = l.timestamp ? new Date(l.timestamp * 1000).toLocaleTimeString() : 'Recent';
+                    const shortAin = l.ain ? (l.ain.length > 28 ? l.ain.substring(0, 24) + '...' : l.ain) : '-';
+                    const hash = l.details && l.details.event_hash ? l.details.event_hash : (typeof l.details === 'string' && l.details.length === 64 ? l.details : null);
+                    const hashDisplay = hash ? (hash.substring(0, 18) + '...') : '&mdash;';
+
+                    return `
+                        <tr>
+                            <td style="color: var(--text-subtle); font-size: 13px;">${dt}</td>
+                            <td>
+                                <button class="copy-pill-btn" onclick="copyText('${l.ain}', 'AIN copied!')" title="${l.ain}">
+                                    ${shortAin}
+                                </button>
+                            </td>
+                            <td>
+                                <span class="status-pill status-pill-neutral">${l.event_type}</span>
+                            </td>
+                            <td>
+                                <button class="copy-pill-btn" onclick="copyText('${hash || ''}', 'Hash copied!')" title="${hash || ''}">
+                                    ${hashDisplay} &boxbox;
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Failed to load telemetry logs", e);
+            }
+        }
+    </script>
+</body>
+</html>

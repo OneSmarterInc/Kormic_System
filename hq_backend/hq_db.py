@@ -27,17 +27,33 @@ async def close_pool():
 async def init_db():
     async with pool.acquire() as conn:
         await conn.execute('''
+            CREATE TABLE IF NOT EXISTS organizations (
+                org_id VARCHAR(64) PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                admin_email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                api_key_hash VARCHAR(64) NOT NULL UNIQUE,
+                tier VARCHAR(32) NOT NULL DEFAULT 'advisory',
+                status VARCHAR(32) NOT NULL DEFAULT 'active',
+                created_at DOUBLE PRECISION NOT NULL,
+                updated_at DOUBLE PRECISION NOT NULL
+            )
+        ''')
+        await conn.execute('''
             CREATE TABLE IF NOT EXISTS twins (
                 ain TEXT PRIMARY KEY,
+                org_id VARCHAR(64) REFERENCES organizations(org_id) ON DELETE CASCADE,
                 status TEXT,
                 last_active DOUBLE PRECISION,
                 manifest_json TEXT,
-                encrypted_payload TEXT
+                encrypted_payload TEXT,
+                epoch_number INT DEFAULT 1
             )
         ''')
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS suspects (
                 ain TEXT PRIMARY KEY,
+                org_id VARCHAR(64) REFERENCES organizations(org_id) ON DELETE CASCADE,
                 reason TEXT,
                 blocked_at DOUBLE PRECISION
             )
@@ -45,6 +61,7 @@ async def init_db():
         await conn.execute('''
             CREATE TABLE IF NOT EXISTS event_logs (
                 id SERIAL PRIMARY KEY,
+                org_id VARCHAR(64) REFERENCES organizations(org_id) ON DELETE CASCADE,
                 ain TEXT,
                 event_type TEXT,
                 details TEXT,
@@ -115,71 +132,202 @@ async def seed_governance_data():
                     VALUES ($1, 'system_bootstrap', 'Needs ability to run codebase helper', 'none', 'no prior helper touched this domain data', NULL, 'build_new', $2, NULL)
                 ''', h[0], time.time())
 
-async def get_all_twins():
+# --- Multi-Tenant Organization Management ---
+
+async def get_org_by_api_key_hash(api_key_hash: str):
     async with pool.acquire() as conn:
-        rows = await conn.fetch('SELECT ain, status, last_active FROM twins')
+        row = await conn.fetchrow('''
+            SELECT org_id, name, admin_email, tier, status, created_at
+            FROM organizations WHERE api_key_hash = $1
+        ''', api_key_hash)
+    return dict(row) if row else None
+
+async def get_org_by_email(admin_email: str):
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow('''
+            SELECT org_id, name, admin_email, password_hash, tier, status, created_at
+            FROM organizations WHERE admin_email = $1
+        ''', admin_email)
+    return dict(row) if row else None
+
+async def get_org_by_id(org_id: str):
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow('''
+            SELECT org_id, name, admin_email, tier, status, created_at
+            FROM organizations WHERE org_id = $1
+        ''', org_id)
+    return dict(row) if row else None
+
+async def create_organization(org_id: str, name: str, admin_email: str, password_hash: str, api_key_hash: str, tier: str = "advisory"):
+    now = time.time()
+    async with pool.acquire() as conn:
+        await conn.execute('''
+            INSERT INTO organizations (org_id, name, admin_email, password_hash, api_key_hash, tier, status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8)
+        ''', org_id, name, admin_email, password_hash, api_key_hash, tier, now, now)
+    return {"org_id": org_id, "name": name, "admin_email": admin_email, "tier": tier, "status": "active"}
+
+async def list_all_organizations():
+    async with pool.acquire() as conn:
+        rows = await conn.fetch('''
+            SELECT o.org_id, o.name, o.admin_email, o.tier, o.status, o.created_at,
+                   COUNT(DISTINCT t.ain) as total_twins,
+                   COUNT(DISTINCT s.ain) as total_suspects
+            FROM organizations o
+            LEFT JOIN twins t ON t.org_id = o.org_id
+            LEFT JOIN suspects s ON s.org_id = o.org_id
+            GROUP BY o.org_id, o.name, o.admin_email, o.tier, o.status, o.created_at
+            ORDER BY o.created_at DESC
+        ''')
+    return [dict(r) for r in rows]
+
+async def update_org_tier(org_id: str, tier: str):
+    async with pool.acquire() as conn:
+        await conn.execute('UPDATE organizations SET tier=$1, updated_at=$2 WHERE org_id=$3', tier, time.time(), org_id)
+
+async def get_org_stats(org_id: str):
+    async with pool.acquire() as conn:
+        twins_count = await conn.fetchval('SELECT COUNT(*) FROM twins WHERE org_id=$1', org_id)
+        active_count = await conn.fetchval("SELECT COUNT(*) FROM twins WHERE org_id=$1 AND status='active'", org_id)
+        suspects_count = await conn.fetchval('SELECT COUNT(*) FROM suspects WHERE org_id=$1', org_id)
+        events_count = await conn.fetchval('SELECT COUNT(*) FROM event_logs WHERE org_id=$1', org_id)
+    return {
+        "total_twins": twins_count,
+        "active_agents": active_count,
+        "suspected_agents": suspects_count,
+        "total_events": events_count
+    }
+
+# --- Multi-Tenant Agent Operations ---
+
+async def get_all_twins(org_id: str = None):
+    async with pool.acquire() as conn:
+        if org_id:
+            rows = await conn.fetch('SELECT ain, org_id, status, last_active, epoch_number FROM twins WHERE org_id=$1 ORDER BY last_active DESC', org_id)
+        else:
+            rows = await conn.fetch('SELECT ain, org_id, status, last_active, epoch_number FROM twins ORDER BY last_active DESC')
     
     from datetime import datetime
     twins = []
     for r in rows:
         dt = datetime.fromtimestamp(r['last_active']).strftime('%Y-%m-%d %H:%M:%S')
-        twins.append({"ain": r['ain'], "status": r['status'], "last_active": dt})
+        twins.append({
+            "ain": r['ain'],
+            "org_id": r.get('org_id', 'unknown'),
+            "status": r['status'],
+            "last_active": dt,
+            "epoch_number": r.get('epoch_number', 1)
+        })
     return twins
 
-async def get_active_agents():
+async def get_active_agents(org_id: str = None):
     async with pool.acquire() as conn:
-        rows = await conn.fetch('SELECT ain FROM twins WHERE status != $1', 'revoked')
+        if org_id:
+            rows = await conn.fetch("SELECT ain FROM twins WHERE org_id=$1 AND status != 'revoked'", org_id)
+        else:
+            rows = await conn.fetch("SELECT ain FROM twins WHERE status != 'revoked'")
     return [r['ain'] for r in rows]
 
-async def get_suspects():
+async def get_suspects(org_id: str = None):
     async with pool.acquire() as conn:
-        rows = await conn.fetch('SELECT ain, reason, blocked_at FROM suspects')
+        if org_id:
+            rows = await conn.fetch('SELECT ain, org_id, reason, blocked_at FROM suspects WHERE org_id=$1 ORDER BY blocked_at DESC', org_id)
+        else:
+            rows = await conn.fetch('SELECT ain, org_id, reason, blocked_at FROM suspects ORDER BY blocked_at DESC')
     from datetime import datetime
-    return [{"ain": r['ain'], "reason": r['reason'], "blocked_at": datetime.fromtimestamp(r['blocked_at']).strftime('%Y-%m-%d %H:%M:%S')} for r in rows]
+    return [{
+        "ain": r['ain'],
+        "org_id": r.get('org_id', 'unknown'),
+        "reason": r['reason'],
+        "blocked_at": datetime.fromtimestamp(r['blocked_at']).strftime('%Y-%m-%d %H:%M:%S')
+    } for r in rows]
 
-async def add_twin(ain, manifest, encrypted_payload=""):
+async def add_twin(ain: str, manifest: dict, encrypted_payload: str = "", org_id: str = "org_kormic", epoch_number: int = 1):
     async with pool.acquire() as conn:
         await conn.execute('''
-            INSERT INTO twins (ain, status, last_active, manifest_json, encrypted_payload)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO twins (ain, org_id, status, last_active, manifest_json, encrypted_payload, epoch_number)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (ain) DO UPDATE SET 
+            org_id = EXCLUDED.org_id,
             status = EXCLUDED.status, 
             last_active = EXCLUDED.last_active, 
             manifest_json = EXCLUDED.manifest_json, 
-            encrypted_payload = EXCLUDED.encrypted_payload
-        ''', ain, "hibernating", time.time(), json.dumps(manifest), encrypted_payload)
+            encrypted_payload = EXCLUDED.encrypted_payload,
+            epoch_number = EXCLUDED.epoch_number
+        ''', ain, org_id, "hibernating", time.time(), json.dumps(manifest), encrypted_payload, epoch_number)
 
-async def get_encrypted_twin(ain):
+async def get_encrypted_twin(ain: str):
     async with pool.acquire() as conn:
         val = await conn.fetchval('SELECT encrypted_payload FROM twins WHERE ain=$1', ain)
     return val
 
-async def revoke_agent_db(ain):
+async def revoke_agent_db(ain: str, org_id: str = None):
     async with pool.acquire() as conn:
-        await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2', 'revoked', ain)
+        if org_id:
+            await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2 AND org_id=$3', 'revoked', ain, org_id)
+        else:
+            await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2', 'revoked', ain)
 
-async def unblock_agent_db(ain):
+async def unblock_agent_db(ain: str, org_id: str = None):
     async with pool.acquire() as conn:
-        await conn.execute('DELETE FROM suspects WHERE ain=$1', ain)
-        await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2', 'hibernating', ain)
+        if org_id:
+            await conn.execute('DELETE FROM suspects WHERE ain=$1 AND org_id=$2', ain, org_id)
+            await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2 AND org_id=$3', 'hibernating', ain, org_id)
+        else:
+            await conn.execute('DELETE FROM suspects WHERE ain=$1', ain)
+            await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2', 'hibernating', ain)
 
-async def flag_suspect(ain, reason):
+async def wake_twin_db(ain: str, org_id: str = None):
+    async with pool.acquire() as conn:
+        if org_id:
+            await conn.execute('DELETE FROM suspects WHERE ain=$1 AND org_id=$2', ain, org_id)
+            await conn.execute('''
+                UPDATE twins 
+                SET status='active', epoch_number=epoch_number+1, last_active=$1 
+                WHERE ain=$2 AND org_id=$3
+            ''', time.time(), ain, org_id)
+        else:
+            await conn.execute('DELETE FROM suspects WHERE ain=$1', ain)
+            await conn.execute('''
+                UPDATE twins 
+                SET status='active', epoch_number=epoch_number+1, last_active=$1 
+                WHERE ain=$2
+            ''', time.time(), ain)
+
+async def flag_suspect(ain: str, reason: str, org_id: str = "org_kormic"):
     async with pool.acquire() as conn:
         await conn.execute('''
-            INSERT INTO suspects (ain, reason, blocked_at) VALUES ($1, $2, $3)
-            ON CONFLICT (ain) DO UPDATE SET reason = EXCLUDED.reason, blocked_at = EXCLUDED.blocked_at
-        ''', ain, reason, time.time())
+            INSERT INTO suspects (ain, org_id, reason, blocked_at) VALUES ($1, $2, $3, $4)
+            ON CONFLICT (ain) DO UPDATE SET org_id = EXCLUDED.org_id, reason = EXCLUDED.reason, blocked_at = EXCLUDED.blocked_at
+        ''', ain, org_id, reason, time.time())
         await conn.execute('UPDATE twins SET status=$1 WHERE ain=$2', 'suspected', ain)
 
-async def log_event(ain, event_type, details):
+async def log_event(ain: str, event_type: str, details: dict, org_id: str = "org_kormic"):
     async with pool.acquire() as conn:
         await conn.execute('''
-            INSERT INTO event_logs (ain, event_type, details, timestamp) VALUES ($1, $2, $3, $4)
-        ''', ain, event_type, json.dumps(details), time.time())
+            INSERT INTO event_logs (ain, org_id, event_type, details, timestamp) VALUES ($1, $2, $3, $4, $5)
+        ''', ain, org_id, event_type, json.dumps(details), time.time())
 
-async def get_events(limit=50):
+async def get_events(org_id: str = None, limit: int = 50):
     async with pool.acquire() as conn:
-        rows = await conn.fetch('''
-            SELECT ain, event_type, details, timestamp FROM event_logs ORDER BY timestamp DESC LIMIT $1
-        ''', limit)
-    return [{'ain': r['ain'], 'event_type': r['event_type'], 'details': json.loads(r['details']) if r['details'] else {}, 'timestamp': r['timestamp']} for r in rows]
+        if org_id:
+            rows = await conn.fetch('''
+                SELECT ain, org_id, event_type, details, timestamp 
+                FROM event_logs 
+                WHERE org_id=$1 
+                ORDER BY timestamp DESC LIMIT $2
+            ''', org_id, limit)
+        else:
+            rows = await conn.fetch('''
+                SELECT ain, org_id, event_type, details, timestamp 
+                FROM event_logs 
+                ORDER BY timestamp DESC LIMIT $1
+            ''', limit)
+    return [{
+        'ain': r['ain'],
+        'org_id': r.get('org_id', 'unknown'),
+        'event_type': r['event_type'],
+        'details': json.loads(r['details']) if r['details'] else {},
+        'timestamp': r['timestamp']
+    } for r in rows]
+

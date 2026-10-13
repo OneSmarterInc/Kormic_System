@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeshKor — Global Trust for AI Agents</title>
+  <meta name="description" content="MeshKor ensures agent authenticity, structured identity, and catastrophic recovery at a global scale.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="field" aria-hidden="true"></div>
+
+  <header>
+    <div class="wrap nav">
+      <a href="index.html" class="brand">
+        <span class="eyebrow">//</span> MeshKor
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="hide-m" style="color:var(--text);">Home</a>
+        <a href="architecture.html" class="hide-m">Architecture</a>
+        <a href="sandbox.html" class="hide-m">Isolated Sandbox</a>
+        <a href="recovery.html" class="hide-m">Recovery Twins</a>
+        <a href="docs.html" class="hide-m">Documentation</a>
+        <a href="../dashboard/index.html" class="btn btn-primary">Try It Now →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="reveal in">
+          <div class="status-pill">• Cryptographic Firewall for AI</div>
+          <h1>Global Trust for <br><span class="gradient-text">AI Agents.</span></h1>
+          <p class="lede">MeshKor provides structured identity, tamper-evident history, sub-millisecond local sandboxing, and catastrophic recovery for AI agents at scale. The authority for enterprise agent security.</p>
+          <div class="hero-cta">
+            <a href="../dashboard/index.html" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">Start building →</a>
+            <a href="docs.html" class="btn btn-secondary" style="padding: 14px 28px; font-size: 16px;">Read the Docs</a>
+          </div>
+        </div>
+
+        <div class="reveal in" style="transition-delay: 0.2s;">
+          <div class="cred-wrapper">
+            <div class="cred-glow"></div>
+            <div class="cred">
+              <div class="cred-inner">
+                <div class="cred-head">
+                  <span class="who">Agent Identification Number</span>
+                  <span class="chip">● Verified</span>
+                </div>
+                <div class="ain">
+                  <span class="k">KMC</span>.<span class="t">agent</span>.<span class="e">trade_bot</span>.<span class="i">inst_01</span>.<span class="h">8f2a9b</span>
+                </div>
+                <div class="cred-foot">
+                  <div class="stat">
+                    <span>Signature</span>
+                    <b class="ok">✓ ML-DSA-44 Valid</b>
+                  </div>
+                  <div class="stat">
+                    <span>Running Head</span>
+                    <b>c2b9...4f1e</b>
+                  </div>
+                  <div class="stat">
+                    <span>Status</span>
+                    <b class="ok">✓ Cache Updated</b>
+                  </div>
+                  <div class="stat">
+                    <span>Manifest</span>
+                    <b>Strict bounds</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE SLIDER -->
+    <section id="features">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="sec-label">Platform Ecosystem</span>
+          <h2>A complete trust layer.</h2>
+          <p>From O(1) FAST verification to catastrophic hardware recovery quorums.</p>
+        </div>
+
+        <style>
+          @keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-120px); } }
+          @keyframes fadeLoop { 0% { opacity: 0; transform: translateY(10px); } 15%, 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+        </style>
+
+        <div class="cards" style="grid-template-columns: 1fr; gap: 40px; margin-top: 48px;">
+          
+          <!-- Terminal 1: Pedigree -->
+          <div class="card reveal" style="display: flex; gap: 48px; align-items: center; padding: 48px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+              <h3 style="font-size: 28px; margin-bottom: 16px;">Constant-Time Verification</h3>
+              <p style="color: var(--muted); margin-bottom: 24px; font-size: 16px; line-height: 1.6;">Avoid O(N) linear growth limits. Every agent event tracks a fixed 64-byte `running_head` that updates continuously, mathematically summarizing the entire history.</p>
+              <a href="architecture.html" class="btn btn-secondary">Explore Engine</a>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+              <div class="terminal" style="width: 100%; margin-top: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                <div class="term-header">
+                  <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+                </div>
+                <div class="term-body" style="height: 160px; overflow: hidden; position: relative;">
+                  <div style="animation: scrollUp 5s infinite linear;">
+                    <div style="margin-bottom:8px;"><span class="cmd">$ kormic verify</span> <span class="arg">KMC.trade_bot</span></div>
+                    <div style="margin-bottom:8px;">> Signature check <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Running head hash <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:24px;">> Cache updated in <span class="highlight">12ms</span>.</div>
+                    
+                    <div style="margin-bottom:8px;"><span class="cmd">$ kormic verify</span> <span class="arg">KMC.auto_agent</span></div>
+                    <div style="margin-bottom:8px;">> Signature check <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Running head hash <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:24px;">> Cache updated in <span class="highlight">9ms</span>.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal 2: Watchdog -->
+          <div class="card reveal" style="display: flex; gap: 48px; align-items: center; padding: 48px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px; order: 2;">
+              <h3 style="font-size: 28px; margin-bottom: 16px;">Behavioral Watchdog</h3>
+              <p style="color: var(--muted); margin-bottom: 24px; font-size: 16px; line-height: 1.6;">The Watchdog evaluates rolling metrics entirely independently of the cryptographic pedigree. It monitors accuracy, overconfidence, guardrail hits, and latency drift.</p>
+              <a href="sandbox.html" class="btn btn-secondary">View Sandbox</a>
+            </div>
+            <div style="flex: 1; min-width: 300px; order: 1;">
+              <div class="terminal" style="width: 100%; margin-top: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                <div class="term-header">
+                  <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+                </div>
+                <div class="term-body" style="height: 160px; overflow: hidden; position: relative;">
+                  <div style="animation: fadeLoop 6s infinite;">
+                    <div style="color: var(--muted-2); margin-bottom:8px;">[MONITOR] Agent: KMC.rogue_01</div>
+                    <div style="margin-bottom:8px;">> Accuracy: 98% <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Latency Drift: 4ms <span class="ok">[OK]</span></div>
+                    <div style="color: var(--amber); margin-bottom:8px;">> Guardrail hits: 1 [FLAG]</div>
+                    <div style="color: #ff5f56; margin-bottom:8px;">> Destructive intent detected.</div>
+                    <div style="margin-bottom:8px;">> Verdict: <span style="background: rgba(255,95,86,0.2); color:#ff5f56; padding: 2px 6px;">HALT</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal 3: Recovery -->
+          <div class="card reveal" style="display: flex; gap: 48px; align-items: center; padding: 48px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+              <h3 style="font-size: 28px; margin-bottom: 16px;">Catastrophic Twin Recovery</h3>
+              <p style="color: var(--muted); margin-bottom: 24px; font-size: 16px; line-height: 1.6;">Shamir Key Shattering guarantees that waking a Twin during a server fire requires a mathematical quorum (e.g., 3 of 5 hardware shares).</p>
+              <a href="recovery.html" class="btn btn-secondary">Explore Recovery</a>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+               <div class="terminal" style="width: 100%; margin-top: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                <div class="term-header">
+                  <div class="term-dot r"></div><div class="term-dot y"></div><div class="term-dot g"></div>
+                </div>
+                <div class="term-body" style="height: 160px; position: relative; overflow: hidden;">
+                  <div style="animation: fadeLoop 7s infinite; animation-delay: 1s;">
+                    <div style="color: var(--muted-2); margin-bottom:8px;">[VAULT] Requesting Decryption...</div>
+                    <div style="margin-bottom:8px;">> Share 1/5 provided <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Share 2/5 provided <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Share 3/5 provided <span class="ok">[OK]</span></div>
+                    <div style="margin-bottom:8px;">> Quorum reached. <span class="highlight">Assembling AES Key...</span></div>
+                    <div style="color: var(--green); font-weight: bold; margin-top: 8px;">> Twin Successfully Restored.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+    <!--  SANDBOX -->
+    <section id="sandbox">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="sec-label">Countermeasures</span>
+          <h2>Runtime Isolation.</h2>
+          <p>Hardened environment to mitigate shared-runtime bleed and unauthorized destructive actions. Zero ambient authority.</p>
+        </div>
+
+        <div class="cards three">
+          <div class="card reveal">
+            <div class="card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3>Capability Manifest</h3>
+            <p>Strict manifests define exactly what tools and network endpoints an agent can reach. The runtime wrapper automatically blocks unlisted actions.</p>
+          </div>
+          <div class="card reveal" style="transition-delay: 0.1s;">
+            <div class="card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h3>FAST Challenge Response</h3>
+            <p>Agents must mathematically sign a random challenge to prove possession of birth keys. Closes the token-theft replay gap entirely.</p>
+          </div>
+          <div class="card reveal" style="transition-delay: 0.2s;">
+            <div class="card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            </div>
+            <h3>Drift HALT Wiring</h3>
+            <p>If the Sandbox blocks an action, a MANIFEST_BREACH is logged. The behavior loop issues a HALT, triggering global registry revocation instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+      <div class="wrap">
+        <div class="cta-banner reveal">
+          <h2 style="font-size: clamp(32px, 4vw, 42px); margin-bottom: 24px;">Deploy verifiable agents today.</h2>
+          <p style="color: var(--muted); font-size: 18px; max-width: 600px; margin: 0 auto 40px;">Join the trusted registry and ensure your AI agents operate with mathematical certainty and zero-trust pedigree.</p>
+          <a href="../dashboard/index.html#signup" class="btn btn-primary" style="padding: 16px 32px; font-size: 18px;">Get Started for Free &rarr;</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 48px;">
+        <div class="foot-brand">
+          <div class="brand"><span class="eyebrow">//</span> MeshKor</div>
+          <p>The global trust authority for AI agents. Securing autonomous systems with post-quantum cryptography, sub-millisecond policy verification, and catastrophic recovery.</p>
+        </div>
+        <div class="foot-col">
+          <h4>Platform</h4>
+          <a href="architecture.html">Pedigree Engine</a>
+          <a href="sandbox.html">Isolated Sandbox</a>
+          <a href="recovery.html">Recovery Twins</a>
+          <a href="docs.html">Documentation</a>
+        </div>
+        <div class="foot-col">
+          <h4>Organization</h4>
+          <a href="../dashboard/index.html">Customer Dashboard</a>
+          <a href="../dashboard/index.html#signup">Provision Org API Key</a>
+        </div>
+      </div>
+      <div class="foot-base">
+        <div>© 2026 MeshKor Inc. All rights reserved.</div>
+        <div>Zero-Trust Cryptographic Firewall for Autonomous Fleets.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll Reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Interactive Hover for Cards (Mouse tracking glow)
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / card.clientWidth) * 100;
+        const y = ((e.clientY - rect.top) / card.clientHeight) * 100;
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+      });
+    });
+
+    // Slider Logic
+    function setSlide(index) {
+      document.querySelectorAll('.slider-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+      });
+      document.querySelectorAll('.slide').forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+      });
+    }
+  </script>
+</body>
+</html>

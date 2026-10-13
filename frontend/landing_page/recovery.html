@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Recovery Twins | Kormic</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .page-header { padding: 120px 0 80px; text-align: center; }
+    .page-header h1 { font-size: clamp(40px, 5vw, 64px); letter-spacing: -2px; margin-bottom: 24px; }
+    .page-header p { font-size: 20px; color: var(--muted); max-width: 700px; margin: 0 auto; line-height: 1.6; }
+    
+    .shard-container { display: flex; justify-content: center; gap: 12px; margin-bottom: 40px; perspective: 600px; }
+    .shard { width: 35px; height: 60px; background: rgba(245,80,54,0.05); border: 2px solid var(--primary); transform: rotateY(30deg); animation: floatShard 3s ease-in-out infinite alternate; box-shadow: inset 0 0 15px rgba(245,80,54,0.3); }
+    .shard:nth-child(2) { animation-delay: 0.2s; border-color: var(--teal); box-shadow: inset 0 0 15px rgba(79, 209, 197, 0.3); }
+    .shard:nth-child(3) { animation-delay: 0.4s; border-color: var(--amber); box-shadow: inset 0 0 15px rgba(244, 196, 107, 0.3); }
+    .shard:nth-child(4) { animation-delay: 0.6s; border-color: var(--violet); box-shadow: inset 0 0 15px rgba(167, 139, 250, 0.3); }
+    .shard:nth-child(5) { animation-delay: 0.8s; border-color: var(--green); box-shadow: inset 0 0 15px rgba(95, 209, 139, 0.3); }
+    @keyframes floatShard { from { transform: rotateY(30deg) translateY(0); } to { transform: rotateY(30deg) translateY(-20px); } }
+  </style>
+</head>
+<body>
+  <div class="field" aria-hidden="true"></div>
+  <header>
+    <div class="wrap nav">
+      <a href="index.html" class="brand"><span class="eyebrow">//</span> MeshKor</a>
+      <nav class="nav-links">
+        <a href="index.html" class="hide-m">Home</a>
+        <a href="architecture.html" class="hide-m">Architecture</a>
+        <a href="sandbox.html" class="hide-m">Isolated Sandbox</a>
+        <a href="recovery.html" class="hide-m" style="color:var(--text);">Recovery Twins</a>
+        <a href="docs.html" class="hide-m">Documentation</a>
+        <a href="../dashboard/index.html" class="btn btn-primary">Try It Now →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="page-header reveal">
+      <div class="shard-container">
+        <div class="shard"></div><div class="shard"></div><div class="shard"></div><div class="shard"></div><div class="shard"></div>
+      </div>
+      <div class="status-pill">Recovery & Protection</div>
+      <h1>Global Scale &<br><span class="gradient-text">Catastrophic Recovery</span></h1>
+      <p>Survive a total catastrophic server loss without relying on a single point of failure. Hardware key isolation and Shamir Secret Sharing Quorums.</p>
+    </div>
+
+    <!-- Hierarchy 1: 50/50 Split Cards -->
+    <section class="cards two reveal" style="padding-top: 0; border: none; margin-bottom: 48px;">
+      <div class="card" style="padding: 40px;">
+        <span class="sec-label" style="margin-bottom: 12px;">Data Integrity</span>
+        <h3 style="font-size: 28px; margin-bottom: 16px; color: #fff;">Shamir Secret Sharing</h3>
+        <p style="font-size: 16px; line-height: 1.7; color: var(--muted);">Instead of giving one person the master password, we split the AES-256 backup key into a polynomial equation given to 5 executives. To restore the database, 3 of the 5 executives must physically combine their pieces.</p>
+      </div>
+      <div class="card" style="padding: 40px;">
+        <span class="sec-label" style="margin-bottom: 12px; color: var(--teal);">Network Speed</span>
+        <h3 style="font-size: 28px; margin-bottom: 16px; color: #fff;">Regional Bloom Filters</h3>
+        <p style="font-size: 16px; line-height: 1.7; color: var(--muted);">Full database replication across the globe is expensive and slow. We push highly compressed bit-arrays (Scalable Bloom Filters) to Regional Replicas. Edge-servers instantly check if an agent is revoked in less than a millisecond.</p>
+      </div>
+    </section>
+
+    <!-- Hierarchy 2: Threshold Ceremony (Featured Card) -->
+    <section class="reveal" style="padding-top: 0; margin-bottom: 96px; border: none;">
+      <div class="card" style="padding: 64px; text-align: center; border: 1px solid var(--line-strong);">
+        <h2 style="font-size: 36px; margin-bottom: 16px; color: #fff;">Threshold Ceremony (Hardware Quorum)</h2>
+        <p style="color: var(--muted); font-size: 18px; max-width: 700px; margin: 0 auto 40px; line-height: 1.6;">Decoupled cryptography interface allowing seamless swaps to YubiKeys or KMS. No single "God Key" exists. Existential quorums require physical 3-of-5 validation, and total system wipes require the absolute maximum 5-of-5 quorum.</p>
+        
+        <div style="display: flex; align-items: stretch; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 32px;">
+          <div class="card" style="padding: 32px; width: 100%; max-width: 260px; background: var(--panel); text-align: left; display: flex; flex-direction: column; gap: 16px;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--text);">Create</div>
+            <p style="font-size: 14px; color: var(--muted); margin: 0;">Initializes a new Pedigree root structure for an entity.</p>
+            <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); color: var(--primary); font-family: var(--mono); font-size: 12px; font-weight: bold;">[ 3/5 Quorum Required ]</div>
+          </div>
+          <div class="card" style="padding: 32px; width: 100%; max-width: 260px; background: var(--panel); text-align: left; display: flex; flex-direction: column; gap: 16px;">
+            <div style="font-size: 24px; font-weight: 700; color: var(--text);">Restore</div>
+            <p style="font-size: 14px; color: var(--muted); margin: 0;">Decrypts AES-256 Vault twins after a catastrophic loss.</p>
+            <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); color: var(--primary); font-family: var(--mono); font-size: 12px; font-weight: bold;">[ 3/5 Quorum Required ]</div>
+          </div>
+          <div class="card" style="padding: 32px; width: 100%; max-width: 260px; background: var(--bg); border-color: rgba(255, 95, 86, 0.4); text-align: left; display: flex; flex-direction: column; gap: 16px;">
+            <div style="font-size: 24px; font-weight: 700; color: #ff5f56;">Destroy All</div>
+            <p style="font-size: 14px; color: var(--muted); margin: 0;">Executes a global irrevocable wipe of all active agents.</p>
+            <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,95,86,0.2); color: #ff5f56; font-family: var(--mono); font-size: 12px; font-weight: bold;">[ 5/5 Quorum Required ]</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 48px;">
+        <div class="foot-brand">
+          <div class="brand"><span class="eyebrow">//</span> Kormic</div>
+          <p>The global trust authority for AI agents. Securing the next generation of autonomous systems with post-quantum cryptography.</p>
+        </div>
+        <div class="foot-col">
+          <h4>Platform</h4>
+          <a href="architecture.html">Pedigree Engine</a>
+          <a href="sandbox.html">Isolated Sandbox</a>
+          <a href="recovery.html">Recovery Twins</a>
+        </div>
+        <div class="foot-col">
+          <h4>Organization</h4>
+          <a href="../dashboard/index.html">Try It Now &rarr;</a>
+          <a href="docs.html">Documentation</a>
+        </div>
+      </div>
+      <div class="foot-base">
+        <div>© 2026 Kormic Inc. All rights reserved.</div>
+        <div>Structured identity. Catastrophic recovery.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const obs = new IntersectionObserver((e) => { e.forEach(en => { if(en.isIntersecting) en.target.classList.add('in'); }); });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+    
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / card.clientWidth) * 100;
+        const y = ((e.clientY - rect.top) / card.clientHeight) * 100;
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+      });
+    });
+  </script>
+</body>
+</html>

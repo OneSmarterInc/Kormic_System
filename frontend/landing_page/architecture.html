@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Architecture | Kormic</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .page-header { padding: 120px 0 80px; text-align: center; }
+    .page-header h1 { font-size: clamp(40px, 5vw, 64px); letter-spacing: -2px; margin-bottom: 24px; }
+    .page-header p { font-size: 20px; color: var(--muted); max-width: 700px; margin: 0 auto; line-height: 1.6; }
+    
+    /* Animated Rings */
+    .rings-wrapper { position: relative; width: 180px; height: 180px; margin: 0 auto 40px; }
+    .ring { position: absolute; inset: 0; border: 2px solid var(--primary); border-radius: 50%; border-top-color: transparent; border-bottom-color: transparent; }
+    .ring.r1 { animation: spin 8s linear infinite; box-shadow: inset 0 0 30px rgba(245,80,54,0.2); }
+    .ring.r2 { animation: spin 12s linear reverse infinite; inset: 20px; border-color: var(--teal); border-left-color: transparent; border-right-color: transparent; }
+    .ring.r3 { animation: spin 6s linear infinite; inset: 40px; border-color: var(--amber); border-top-color: transparent; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="field" aria-hidden="true"></div>
+  <header>
+    <div class="wrap nav">
+      <a href="index.html" class="brand"><span class="eyebrow">//</span> MeshKor</a>
+      <nav class="nav-links">
+        <a href="index.html" class="hide-m">Home</a>
+        <a href="architecture.html" class="hide-m" style="color:var(--text);">Architecture</a>
+        <a href="sandbox.html" class="hide-m">Isolated Sandbox</a>
+        <a href="recovery.html" class="hide-m">Recovery Twins</a>
+        <a href="docs.html" class="hide-m">Documentation</a>
+        <a href="../dashboard/index.html" class="btn btn-primary">Try It Now →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="page-header reveal">
+      <div class="rings-wrapper">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+      </div>
+      <div class="status-pill">Engine That Works Silently, Keeping Everything Stable.</div>
+      <h1>Core Pedigree &<br><span class="gradient-text">Immutable Identity</span></h1>
+      <p>As AI agents become more autonomous, standard security practices are no longer safe. Discover the Zero-Trust, Pedigree-based security model.</p>
+    </div>
+
+    <!-- Hierarchy 1: The Problem (Featured Card) -->
+    <section class="reveal" style="padding-top: 0; margin-bottom: 64px;">
+      <div class="card" style="padding: 48px; border-color: var(--primary-glow); background: radial-gradient(circle at top left, rgba(245,80,54,0.05), var(--panel-2));">
+        <h2 style="font-size: 32px; margin-bottom: 24px;">The Problem with Legacy Authentication</h2>
+        <p style="font-size: 18px; color: var(--muted); max-width: 800px; line-height: 1.7;">Traditional software uses standard usernames, passwords, or UUIDs. But if an autonomous AI agent starts buying 10,000 stocks a second, a UUID doesn't tell us <strong>who legally owns that agent</strong> or <strong>what it was designed to do</strong>. JWTs are easily stolen and lack long-term historical context, allowing attackers to hide their tracks completely.</p>
+      </div>
+    </section>
+
+    <!-- Hierarchy 2: The Solution Grid -->
+    <section class="cards two reveal" style="padding-top: 0; margin-bottom: 96px; border: none;">
+      <!-- Structured Identity -->
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <span class="sec-label">O(1) Engine</span>
+          <h3 style="font-size: 26px; margin-bottom: 16px;">Structured Identity</h3>
+          <p style="color: var(--muted); font-size: 16px; margin-bottom: 24px;">We created a cryptographic Birth Record for every agent. The agent's ID is structured and mathematically signed using Post-Quantum ML-DSA-44 cryptography to bind the AI to a real-world entity.</p>
+        </div>
+        <div class="terminal">
+          <div class="term-body" style="padding: 20px;">
+            <div class="cmd">KMC.CMP.agent_name.0001.&lt;hash&gt;</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tamper-Evident History -->
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <span class="sec-label">Immutable Logs</span>
+          <h3 style="font-size: 26px; margin-bottom: 16px;">Tamper-Evident History</h3>
+          <p style="color: var(--muted); font-size: 16px; margin-bottom: 24px;">Agents perform thousands of actions. We implemented a cryptographically chained history log. Every action is hashed together with the previous action's hash, making deletion mathematically impossible to hide.</p>
+        </div>
+        <div style="background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 24px;">
+          <div style="border-left: 2px solid var(--primary); padding-left: 16px;">
+            <div style="margin-bottom: 16px;"><div class="eyebrow">Action 1</div><div style="color: var(--muted-2); font-family: var(--mono); font-size: 11px;">hash(event1, root)</div></div>
+            <div style="margin-bottom: 16px;"><div class="eyebrow">Action 2</div><div style="color: var(--muted-2); font-family: var(--mono); font-size: 11px;">hash(event2, hash1)</div></div>
+            <div><div class="eyebrow" style="color: var(--primary);">Running Head</div><div style="color: var(--text); font-family: var(--mono); font-size: 11px;">hash(eventN, hashN-1)</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 48px;">
+        <div class="foot-brand">
+          <div class="brand"><span class="eyebrow">//</span> Kormic</div>
+          <p>The global trust authority for AI agents. Securing the next generation of autonomous systems with post-quantum cryptography.</p>
+        </div>
+        <div class="foot-col">
+          <h4>Platform</h4>
+          <a href="architecture.html">Pedigree Engine</a>
+          <a href="sandbox.html">Isolated Sandbox</a>
+          <a href="recovery.html">Recovery Twins</a>
+        </div>
+        <div class="foot-col">
+          <h4>Organization</h4>
+          <a href="../dashboard/index.html">Try It Now &rarr;</a>
+          <a href="docs.html">Documentation</a>
+        </div>
+      </div>
+      <div class="foot-base">
+        <div>© 2026 Kormic Inc. All rights reserved.</div>
+        <div>Structured identity. Catastrophic recovery.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const obs = new IntersectionObserver((e) => { e.forEach(en => { if(en.isIntersecting) en.target.classList.add('in'); }); });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+    
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / card.clientWidth) * 100;
+        const y = ((e.clientY - rect.top) / card.clientHeight) * 100;
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+      });
+    });
+  </script>
+</body>
+</html>
