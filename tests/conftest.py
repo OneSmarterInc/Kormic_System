@@ -1,22 +1,21 @@
 import os
-import pytest
 import shutil
+import pytest
 
-@pytest.fixture(scope="session", autouse=True)
+# Set before test collection; never read the checkout's .env in tests.
+os.environ["KORMIC_DEPLOYMENT_MODE"] = "development"
+os.environ["MESHKOR_DATABASE_URL"] = "postgresql://localhost/unused_test_placeholder"
+
+
+@pytest.fixture(scope="session")
 def setup_meshkor_db(request):
     if not shutil.which("pg_ctl"):
-        pytest.skip("pg_ctl is not installed, skipping.")
-        
-    # We retrieve the postgresql_proc fixture dynamically
-    postgresql_proc = request.getfixturevalue("postgresql_proc")
-    
-    dsn = f"postgresql://{postgresql_proc.user}@{postgresql_proc.host}:{postgresql_proc.port}/postgres"
+        pytest.skip("PostgreSQL test requires pg_ctl")
+    process = request.getfixturevalue("postgresql_proc")
+    dsn = f"postgresql://{process.user}@{process.host}:{process.port}/postgres"
+    from hq_backend import hq_db
+    old = hq_db.DB_URL
     os.environ["MESHKOR_DATABASE_URL"] = dsn
-    os.environ["KORMIC_DEPLOYMENT_MODE"] = "development"
-    
-    import importlib
-    import hq_backend.hq_db
-    import hq_backend.hq_server
-    
-    importlib.reload(hq_backend.hq_db)
-    importlib.reload(hq_backend.hq_server)
+    hq_db.DB_URL = dsn
+    yield
+    hq_db.DB_URL = old

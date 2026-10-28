@@ -10,6 +10,8 @@ import secrets
 import json
 import hashlib
 import time
+import re
+import hmac
 
 from kormic.registry.distributed import CentralRegistryAuthority
 from kormic.crypto.software import SoftwareKeyCustody
@@ -19,12 +21,21 @@ from kormic.models.behavior import BehaviorConfig
 import hq_backend.hq_db as db
 
 KORMIC_DEPLOYMENT_MODE = os.getenv("KORMIC_DEPLOYMENT_MODE", "production")
-VALID_API_KEY = os.getenv("MESHKOR_API_KEY", "Meshkor-2026")
+ADMIN_PUBKEY_SHA256 = os.getenv("MESHKOR_ADMIN_PUBKEY_SHA256", "").strip().lower()
+ADMIN_CHALLENGE_TTL = 60
+
+
+def validate_admin_key_configuration() -> None:
+    if ADMIN_PUBKEY_SHA256 and not re.fullmatch(r"[0-9a-f]{64}", ADMIN_PUBKEY_SHA256):
+        raise RuntimeError("MESHKOR_ADMIN_PUBKEY_SHA256 must be a SHA-256 hex fingerprint.")
+    if KORMIC_DEPLOYMENT_MODE != "development" and not ADMIN_PUBKEY_SHA256:
+        raise RuntimeError("CRITICAL: MESHKOR_ADMIN_PUBKEY_SHA256 is not set. Refusing production startup.")
 
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_admin_key_configuration()
     await db.init_pool()
     await db.init_db()
     yield
@@ -74,9 +85,6 @@ async def authenticate_api_key(authorization: str = Header(None)) -> dict:
     
     org = await db.get_org_by_api_key_hash(key_hash)
     if not org or org.get("status") != "active":
-        # Backward compatibility fallback
-        if VALID_API_KEY and raw_key == VALID_API_KEY:
-            return {"org_id": "org_kormic", "name": "Kormic Education Technologies", "tier": "advisory"}
         raise HTTPException(status_code=401, detail="Invalid API Key or Inactive Organization")
     return org
 
@@ -284,9 +292,15 @@ async def record_event_route(req: EventRecord, org: dict = Depends(authenticate_
 
 @app.get("/admin/challenge")
 async def get_admin_challenge():
+    now = time.monotonic()
+    for value, expiry in list(admin_challenges.items()):
+        if expiry <= now:
+            admin_challenges.pop(value, None)
+    if len(admin_challenges) >= 1024:
+        raise HTTPException(status_code=429, detail="Too many outstanding challenges.")
     challenge = secrets.token_hex(32)
-    admin_challenges[challenge] = True
-    return {"challenge": challenge}
+    admin_challenges[challenge] = now + ADMIN_CHALLENGE_TTL
+    return {"challenge": challenge, "expires_in": ADMIN_CHALLENGE_TTL}
 
 class AdminAuthRequest(BaseModel):
     challenge: str
@@ -295,14 +309,26 @@ class AdminAuthRequest(BaseModel):
 
 @app.post("/admin/auth")
 async def admin_auth(req: AdminAuthRequest):
-    if req.challenge not in admin_challenges:
-        return {"error": "Invalid challenge"}
+    # Consume before awaiting signature verification: a challenge is single-use
+    # even when requests race or a signature is invalid.
+    expiry = admin_challenges.pop(req.challenge, None)
+    if expiry is None or time.monotonic() >= expiry:
+        raise HTTPException(status_code=401, detail="Invalid or expired challenge.")
     
     def verify_sig():
-        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_public_key, Encoding, PublicFormat,
+        )
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives import hashes
         pub_key = load_pem_public_key(req.pub_key_pem.encode('utf-8'))
+        if not isinstance(pub_key, ec.EllipticCurvePublicKey):
+            raise ValueError("Unsupported admin key type")
+        fingerprint = hashlib.sha256(pub_key.public_bytes(
+            Encoding.DER, PublicFormat.SubjectPublicKeyInfo,
+        )).hexdigest()
+        if not ADMIN_PUBKEY_SHA256 or not hmac.compare_digest(fingerprint, ADMIN_PUBKEY_SHA256):
+            raise ValueError("Untrusted admin key")
         pub_key.verify(
             bytes.fromhex(req.signature_hex), 
             req.challenge.encode('utf-8'), 
@@ -311,10 +337,9 @@ async def admin_auth(req: AdminAuthRequest):
         
     try:
         await asyncio.to_thread(verify_sig)
-    except Exception as e:
-        return {"error": f"Hardware Signature Cryptographically Invalid: {str(e)}"}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid administrator authentication.") from None
         
-    del admin_challenges[req.challenge]
     session_token = secrets.token_hex(24)
     # Super-Admin session has unrestricted global visibility
     active_admin_sessions[session_token] = {
@@ -365,47 +390,72 @@ async def list_suspected_agents(token: str = None, authorization: str = Header(N
     suspects = await db.get_suspects(org_id=org_id)
     return {"suspects": suspects}
 
+@asynccontextmanager
+async def authorized_twin(session: dict, ain: str):
+    """Lock ownership through the operation so concurrent transfers cannot race it."""
+    async with db.pool.acquire() as conn:
+        async with conn.transaction():
+            owner = await conn.fetchrow(
+                "SELECT org_id FROM twins WHERE ain=$1 FOR UPDATE", ain,
+            )
+            if owner is None:
+                raise HTTPException(status_code=404, detail="Twin not found")
+            if session.get("role") != "SUPER_ADMIN" and (
+                session.get("role") != "ORG_ADMIN"
+                or not session.get("org_id")
+                or owner["org_id"] != session["org_id"]
+            ):
+                raise HTTPException(status_code=403, detail="Twin belongs to another organization")
+            yield conn
+
+
 @app.post("/admin/revoke")
 async def revoke_agent(req: dict):
     session = get_session(token=req.get("token"))
-    org_id = None if session.get("role") == "SUPER_ADMIN" else session.get("org_id")
-    ain = req.get('ain')
-    
-    await db.revoke_agent_db(ain, org_id=org_id)
+    ain = req.get("ain")
+    async with authorized_twin(session, ain) as conn:
+        await conn.execute("UPDATE twins SET status='revoked' WHERE ain=$1", ain)
     central.revoke_agent(ain)
     return {"status": f"Agent {ain} successfully revoked and broadcasted globally."}
+
 
 @app.post("/admin/unblock")
 async def unblock_agent(req: dict):
     session = get_session(token=req.get("token"))
-    org_id = None if session.get("role") == "SUPER_ADMIN" else session.get("org_id")
-    ain = req.get('ain')
-    
-    await db.unblock_agent_db(ain, org_id=org_id)
+    ain = req.get("ain")
+    async with authorized_twin(session, ain) as conn:
+        await conn.execute("DELETE FROM suspects WHERE ain=$1", ain)
+        await conn.execute("UPDATE twins SET status='hibernating' WHERE ain=$1", ain)
     if ain in central.revoked_agents:
         central.revoked_agents.remove(ain)
         central.version += 1
     return {"status": f"Agent {ain} successfully unblocked and restored."}
 
+
 @app.post("/admin/twins/{ain}/wake")
 async def wake_twin_route(ain: str, req: dict):
-    """Real Twin Resurrection into Epoch 2."""
     session = get_session(token=req.get("token"))
-    org_id = None if session.get("role") == "SUPER_ADMIN" else session.get("org_id")
-    
-    await db.wake_twin_db(ain, org_id=org_id)
+    async with authorized_twin(session, ain) as conn:
+        await conn.execute("DELETE FROM suspects WHERE ain=$1", ain)
+        await conn.execute(
+            "UPDATE twins SET status='active', epoch_number=epoch_number+1, last_active=$1 WHERE ain=$2",
+            time.time(), ain,
+        )
     if ain in central.revoked_agents:
         central.revoked_agents.remove(ain)
         central.version += 1
-    return {"status": "ok", "message": f"Agent {ain} successfully resurrected into Epoch 2."}
+    return {"status": "ok", "message": f"Agent {ain} successfully resurrected."}
+
 
 @app.get("/admin/twins/{ain}/download")
 async def download_twin(ain: str, token: str):
     session = get_session(token=token)
-    payload = await db.get_encrypted_twin(ain)
-    if not payload:
-        return {"error": "Twin not found."}
+    async with authorized_twin(session, ain) as conn:
+        payload = await conn.fetchval("SELECT encrypted_payload FROM twins WHERE ain=$1", ain)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Twin payload not found")
     return {"encrypted_payload": payload}
+
 
 @app.get('/admin/logs')
 async def get_admin_logs(token: str, limit: int = 50):

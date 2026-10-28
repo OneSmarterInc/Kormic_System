@@ -1,0 +1,10 @@
+pytest
+pytest-asyncio
+pytest-postgresql
+psycopg[binary]
+httpx
+grpcio-tools
+pyyaml
+dilithium-py
+pycryptodome
+pybloom-live
